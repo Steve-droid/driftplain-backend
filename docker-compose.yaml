@@ -2,6 +2,9 @@
 # (FE runs via `npm run dev` against this; the unified FE+BE+DB compose for FE
 # integration tests lands in the frontend repo at S17.)
 
+# Preserve the existing Compose project and volumes after the checkout rename.
+name: modelmatch-backend
+
 services:
   db:
     image: postgres:16

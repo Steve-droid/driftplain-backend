@@ -1,5 +1,5 @@
 [project]
-name = "modelmatch-backend"
+name = "driftplain-backend"
 version = "0.0.1"
 description = "Driftplain backend — deterministic recommender, CI savings engine, in-cluster LLM (ingestion + chat), and the CI agent image."
 requires-python = ">=3.12"

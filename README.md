@@ -1,14 +1,15 @@
 # Driftplain — Backend
 
+[Website](https://driftplain.dev) · [Frontend](https://github.com/Steve-droid/driftplain-frontend) · [Backend](https://github.com/Steve-droid/driftplain-backend) · [Infra](https://github.com/Steve-droid/driftplain-infra) · [GitOps](https://github.com/Steve-droid/driftplain-gitops)
+
 > **P38r — shipped September 12, 2026:** Driftplain is live at **https://driftplain.dev**, with **https://api.driftplain.dev** as its runtime API. Trusted HTTPS, Google domain ownership, published Google branding and real sign-in are verified. Modicum/sslip.io endpoints and operational identifiers remain compatible. FE/BE 1.0.24, agents 1.1.3; runtime cutover GitOps v0.18.22.
 
 
-> Driftplain was previously Modicum / ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility.
+> Driftplain was previously Modicum / ModelMatch. The four public repositories use `driftplain-*`; existing infrastructure, images, database names, metrics and CI credential/environment identifiers retain `modelmatch` for compatibility.
 
 > FastAPI backend for **Driftplain** — a deterministic model recommender, a CI savings engine with a
 > quality gate, two in-cluster LLM capabilities (catalog ingestion + grounded chat), **and** the
-> containerised CI code-review agent. Part of the [Driftplain portfolio build](../CLAUDE.md);
-> full spec in [`../docs/planning/`](../docs/planning/).
+> containerised CI code-review agent. Part of the four-repository Driftplain project linked above.
 
 ## Table of Contents
 
@@ -74,7 +75,7 @@ Conceptual diagrams (editable draw.io sources):
 - [`docs/diagrams/recommender-and-ingestion.drawio`](docs/diagrams/recommender-and-ingestion.drawio) — deterministic recommender + catalog ingestion
 - [`docs/diagrams/data-model.drawio`](docs/diagrams/data-model.drawio) — the data model
 
-Authoritative spec: [`../docs/planning/architecture.md`](../docs/planning/architecture.md).
+Local workspace design: `../docs/planning/hld.md` (private portfolio documentation).
 
 ## Technology Stack
 
@@ -93,7 +94,7 @@ Authoritative spec: [`../docs/planning/architecture.md`](../docs/planning/archit
 ## Repository Structure
 
 ```
-modelmatch-backend/
+driftplain-backend/
 ├── app/
 │   ├── api/            # FastAPI routers
 │   ├── auth/           # register/login, JWT (argon2), owner-scoping
@@ -297,7 +298,7 @@ graph LR
     L --> M[Deploy<br/>gitops bump · main]
 ```
 
-The **Deploy** stage bumps `backend.image.tag` in the [gitops](../modelmatch-gitops) umbrella; ArgoCD
+The **Deploy** stage bumps `backend.image.tag` in the [gitops](https://github.com/Steve-droid/driftplain-gitops) umbrella; ArgoCD
 syncs it — never a hand `kubectl`/`helm`.
 
 ### Agent pipeline — [`Jenkinsfile.agent`](Jenkinsfile.agent) (P19)
