@@ -871,7 +871,7 @@ wheels = [
 ]
 
 [[package]]
-name = "modelmatch-backend"
+name = "driftplain-backend"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [

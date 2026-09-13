@@ -1,4 +1,4 @@
-// modelmatch-backend CI/CD pipeline (P18; test taxonomy refined in P31). Multibranch
+// driftplain-backend CI/CD pipeline (P18; test taxonomy refined in P31). Multibranch
 // job on the persistent Jenkins controller. Two ordered stage groups + a release tail:
 //   FAST    — Build -> Bandit/pip-audit gate -> unit test (no containers, fake LLM).
 //   FULL    — Package BE image -> Trivy -> DB-backed contract tests (pytest, in-process)

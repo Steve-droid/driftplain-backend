@@ -1,7 +1,7 @@
 # Driftplain — Runbook & Demo Walkthrough
 
 > A single, reviewer-facing guide to **understand**, **run**, and **demo** Driftplain. It spans both
-> active repos (`modelmatch-backend`, `modelmatch-frontend`). It lives in the backend repo because the
+> active repos (`driftplain-backend`, `driftplain-frontend`). It lives in the backend repo because the
 > umbrella workspace is **not** a git repo and the backend holds the product core + the CI agent.
 >
 > Authoritative product spec: [`../../docs/planning/`](../../docs/planning/) (`prd-1.md`,
@@ -227,7 +227,7 @@ quality_ok    = acceptance_rate ≥ QUALITY_THRESHOLD  (default 0.8)
 - **Frontend:** Node.js 20+ and npm.
 - Copy each repo's `.env.example` → `.env` (never commit `.env`).
 
-### Backend + Postgres (from `modelmatch-backend/`)
+### Backend + Postgres (from `driftplain-backend/`)
 
 Run Postgres in Docker and the backend on the host. The one value you **must** change is `JWT_SECRET`:
 the placeholder in `.env.example` is **rejected at startup** (there is no built-in default).
@@ -256,7 +256,7 @@ Interactive API docs at `http://localhost:8000/docs`.
 > `SECRET_STORE=fake` — no cloud creds needed and **zero tokens spent**. Real Bedrock/S3/Secrets
 > backends activate with the infra stories. (You still set a real `JWT_SECRET` as above.)
 
-### Frontend (from `modelmatch-frontend/`)
+### Frontend (from `driftplain-frontend/`)
 
 ```bash
 cp .env.example .env                    # VITE_API_BASE_URL=http://localhost:8000
@@ -271,7 +271,7 @@ templated `/config.js` served by nginx; for local dev Vite reads `VITE_`-prefixe
 
 ## 9. Environment variables
 
-### Backend (`modelmatch-backend/.env`)
+### Backend (`driftplain-backend/.env`)
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -303,7 +303,7 @@ templated `/config.js` served by nginx; for local dev Vite reads `VITE_`-prefixe
 `AGENT_MODEL`, `AGENT_MAX_TOKENS`, `AGENT_TOKEN_CEILING`, `AGENT_FAIL_SEVERITIES`, plus the provider
 creds (`ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / AWS via IRSA). See [`../agent/README.md`](../agent/README.md).
 
-### Frontend (`modelmatch-frontend/.env`)
+### Frontend (`driftplain-frontend/.env`)
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -317,7 +317,7 @@ All LLM uses sit behind one `LLMClient` with a **fake client + recorded fixtures
 **offline at zero token cost**.
 
 ```bash
-# Backend (from modelmatch-backend/) — needs Postgres up (docker compose up -d db)
+# Backend (from driftplain-backend/) — needs Postgres up (docker compose up -d db)
 uv run pytest                       # full suite (fake LLM, offline)
 uv run pytest tests/test_savings.py # a focused module
 
@@ -331,7 +331,7 @@ auth/owner-scoping, project lifecycle (edit/delete cascade + token rotation), mi
 observability log line + `/metrics`, agent review.
 
 ```bash
-# Frontend (from modelmatch-frontend/)
+# Frontend (from driftplain-frontend/)
 npm run test        # Vitest (unit/component — 68 tests)
 npm run typecheck   # tsc --noEmit
 npm run build       # production build
@@ -390,8 +390,8 @@ is fine for everything except the live agent call.
 | FE: login, dashboard + chat panel, recommender/project/Jenkins onboarding | **Done** (S15a/S15b/S15c) |
 | **Project lifecycle** — edit / re-pick (`PATCH`), delete (`DELETE`, FK cascade), defer-create (no orphan), Jenkins URL validation, CI-token regenerate (`/ci-setup/rotate`) | **Done** (S15d — backend v0.20.0, frontend v0.5.0) |
 | **e2e + real-Jenkins smoke** — Playwright happy path + real-stack `/ci-runs` smoke + the **FE+BE+DB-on-ECR** cowsay smoke on real EC2 Jenkins | **Done (S17a)** — automated e2e green + the [real-Jenkins smoke](ec2-jenkins-cowsay-smoke.md) **ran green** (fake agent). **S17b** owes the live-BYOK Haiku run + the response-rating UI |
-| **Infra** — Terraform (EKS, VPC, ECR, IRSA, S3 state) | **[planned]** — `modelmatch-infra` is a SHELL repo |
-| **GitOps** — Helm umbrella + ArgoCD, cert-manager, ingress, monitoring/logging | **[planned]** — `modelmatch-gitops` is a SHELL repo |
+| **Infra** — Terraform (EKS, VPC, ECR, IRSA, S3 state) | **[planned]** — `driftplain-infra` is a SHELL repo |
+| **GitOps** — Helm umbrella + ArgoCD, cert-manager, ingress, monitoring/logging | **[planned]** — `driftplain-gitops` is a SHELL repo |
 | Real `BLOB_STORE=s3` / `SECRET_STORE=aws` / `LLM_CLIENT=bedrock` live | **[planned]** — only `fake` backends wired today |
 | **Proactive advisor** (S19–S20) | **[planned, separable]** — droppable bonus |
 | **Repo auto-profile** (S21–S22) | **[planned, optional]** |
@@ -400,7 +400,7 @@ is fine for everything except the live agent call.
 
 ## 13. Related docs
 
-- Per-repo READMEs: [`../README.md`](../README.md) (backend), `../../modelmatch-frontend/README.md`.
+- Per-repo READMEs: [`../README.md`](../README.md) (backend), `../../driftplain-frontend/README.md`.
 - CI agent details: [`../agent/README.md`](../agent/README.md).
 - Real-Jenkins cowsay smoke (manual, gated): [`ec2-jenkins-cowsay-smoke.md`](ec2-jenkins-cowsay-smoke.md).
 - Product spec: [`../../docs/planning/`](../../docs/planning/) — `prd-1.md`, `architecture.md`,

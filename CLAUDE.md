@@ -1,6 +1,6 @@
-# CLAUDE.md — modelmatch-backend
+# CLAUDE.md — driftplain-backend
 
-> Driftplain was previously Modicum / ModelMatch. Repository and infrastructure identifiers retain `modelmatch` for compatibility.
+> Driftplain was previously Modicum / ModelMatch. The four public repositories use `driftplain-*`; existing infrastructure, images, database names, metrics and CI credential/environment identifiers retain `modelmatch` for compatibility.
 
 **Status: ACTIVE.** FastAPI backend for Driftplain **+ the CI-agent image**. See the umbrella
 `../CLAUDE.md` and the spec in `../docs/planning/` (esp. `architecture.md` and `module-reconciliation.md`).
