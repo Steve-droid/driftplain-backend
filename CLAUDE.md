@@ -1,5 +1,37 @@
 # CLAUDE.md — driftplain-backend
 
+## Claude Code continuation — HM3 data/credential preservation — September 15, 2026
+
+Read [the HM3 handoff](../docs/session-handoffs/E21-home-hosting/2026-09-15-hm3-backup-restore.md)
+first and [umbrella instructions](../CLAUDE.md). HM2 is complete. HM3 is an encrypted
+production-export/private-restore rehearsal, not a new feature/model/app release.
+The current design is [HLD](../docs/planning/hld.md); only
+[02-showcase-backlog.md](../docs/planning/02-showcase-backlog.md) defines upcoming work.
+Removed architecture/reconciliation/mentor-note paths below are historical, not active plans.
+
+Preserve existing users/OAuth subjects, password hashes, JWT/DB values, projects, CI-token
+hashes, findings, feedback, catalog and chat history. Inspect ORM/migrations/constraints,
+role/default privileges and sequences to build a complete same-snapshot restore comparison.
+Do not log rows, passwords or credential hashes. Historical schema was a4b5c6d7e8f9; verify
+current production instead of assuming it. No blind migration or seed on restored data.
+
+`app/schemas/jenkins.py` and `app/projects/jenkins_service.py` are metadata-only: secrets
+are rejected and legacy refs are nullable/unused. Do not build a BYOK vault or replace
+existing CI tokens. `app/blob_store.py` is currently in-memory; durable S3 ingestion was
+selected for HM4 and is not already implemented. Existing role permissions do not yet
+include that future S3 adapter. FE/BE remains 1.0.24, both agent images 1.1.3; public GHCR
+is selected for later distribution, not already published. No paid LLM calls. Use fake
+LLM/disposable DB fixtures for focused new restore-related tests; don't rerun unchanged
+app suites or invoke live E2E just for documentation changes.
+
+**Current working preference (Steve, September 15):** keep progressing and pause only
+for critical architectural decisions. Plan, use focused tests for new behavior, verify and
+self-review before routine commits/PRs; do not reintroduce the generic approval loops or
+full-suite repetition below for unchanged work. This supersedes those older instructions
+for this continuation. No paid LLM calls, public cutover, production teardown or destructive
+source changes without explicit scope. No subagents/review agents, unsolicited diagrams
+or additional tasks. Keep answers concise.
+
 > Driftplain was previously Modicum / ModelMatch. The four public repositories use `driftplain-*`; existing infrastructure, images, database names, metrics and CI credential/environment identifiers retain `modelmatch` for compatibility.
 
 **Status: ACTIVE.** FastAPI backend for Driftplain **+ the CI-agent image**. See the umbrella
