@@ -1,10 +1,11 @@
 # CLAUDE.md — driftplain-backend
 
-## Claude Code continuation — HM3 data/credential preservation — September 15, 2026
+## Claude Code continuation — HM4 home GitOps and app — September 15, 2026
 
-Read [the HM3 handoff](../docs/session-handoffs/E21-home-hosting/2026-09-15-hm3-backup-restore.md)
-first and [umbrella instructions](../CLAUDE.md). HM2 is complete. HM3 is an encrypted
-production-export/private-restore rehearsal, not a new feature/model/app release.
+Read [the HM4 handoff](../docs/session-handoffs/E21-home-hosting/2026-09-15-hm4-home-gitops-app.md)
+first and [umbrella instructions](../CLAUDE.md). HM3 is complete (restored copy at alembic
+`a4b5c6d7e8f9`). HM4 deploys the EXISTING 1.0.24 images at home; the only backend change is the
+durable S3 blob adapter below, shipped with the next reviewed release, not a new image now.
 The current design is [HLD](../docs/planning/hld.md); only
 [02-showcase-backlog.md](../docs/planning/02-showcase-backlog.md) defines upcoming work.
 Removed architecture/reconciliation/mentor-note paths below are historical, not active plans.
