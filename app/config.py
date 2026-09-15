@@ -162,10 +162,11 @@ class Settings(BaseSettings):
     bedrock_model_id: str = "apac.amazon.nova-lite-v1:0"  # in-cluster ingestion + chat
     s3_bucket: str = "modelmatch-ingestion-sources-957261948820"  # ingestion source docs land here
 
-    # Blob store for ingestion source bytes (S5b). Only `fake` (in-process, dev/tests)
-    # is implemented today; the S3/IRSA adapter lands with the infra story. A Literal
-    # so an unsupported value fails at config-load, not mid-request — mirrors SECRET_STORE.
-    blob_store: Literal["fake"] = "fake"
+    # Blob store for ingestion source bytes (S5b). `fake` = in-process (dev/tests);
+    # `s3` = the durable adapter on S3_BUCKET (E21/HM4) using the SDK's default identity
+    # (IRSA on EKS, Roles Anywhere at home — never static keys). A Literal so an
+    # unsupported value fails at config-load, not mid-request — mirrors SECRET_STORE.
+    blob_store: Literal["fake", "s3"] = "fake"
 
     # Hard hourly token cap for OUR in-cluster Nova (Roey 2026-06-04): a real ceiling
     # that ABORTS (429), not just an alert. Counted via the Postgres `llm_usage` tally
