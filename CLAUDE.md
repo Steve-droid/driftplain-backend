@@ -17,10 +17,12 @@ current production instead of assuming it. No blind migration or seed on restore
 
 `app/schemas/jenkins.py` and `app/projects/jenkins_service.py` are metadata-only: secrets
 are rejected and legacy refs are nullable/unused. Do not build a BYOK vault or replace
-existing CI tokens. `app/blob_store.py` is currently in-memory; durable S3 ingestion was
-selected for HM4 and is not already implemented. Existing role permissions do not yet
-include that future S3 adapter. FE/BE remains 1.0.24, both agent images 1.1.3; public GHCR
-is selected for later distribution, not already published. No paid LLM calls. Use fake
+existing CI tokens. `app/blob_store.py` now has the durable `s3` adapter (E21/HM4:
+content-hash keys, SSE-S3, bounded reads, put-before-catalog-commit; `BLOB_STORE=s3`,
+identity from the SDK default chain — IRSA on EKS, Roles Anywhere at home); the home
+Bedrock role's object-level grant for it is planned in infra, not applied. FE/BE remains
+1.0.24 (this adapter ships with the next reviewed release), both agent images 1.1.3; public
+GHCR distribution is the HM4 copy path. No paid LLM calls. Use fake
 LLM/disposable DB fixtures for focused new restore-related tests; don't rerun unchanged
 app suites or invoke live E2E just for documentation changes.
 
