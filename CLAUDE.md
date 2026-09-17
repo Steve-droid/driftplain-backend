@@ -1,31 +1,26 @@
 # CLAUDE.md — driftplain-backend
 
-## Claude Code continuation — HM4 home GitOps and app — September 15, 2026
+## Claude Code continuation — HM5 sustainable public operation — September 17, 2026
 
-Read [the HM4 handoff](../docs/session-handoffs/E21-home-hosting/2026-09-15-hm4-home-gitops-app.md)
-first and [umbrella instructions](../CLAUDE.md). HM3 is complete (restored copy at alembic
-`a4b5c6d7e8f9`). HM4 deploys the EXISTING 1.0.24 images at home; the only backend change is the
-durable S3 blob adapter below, shipped with the next reviewed release, not a new image now.
-The current design is [HLD](../docs/planning/hld.md); only
-[02-showcase-backlog.md](../docs/planning/02-showcase-backlog.md) defines upcoming work.
-Removed architecture/reconciliation/mentor-note paths below are historical, not active plans.
+Read [the HM5 handoff](../docs/session-handoffs/E21-home-hosting/2026-09-17-hm5-sustainable-public-operation.md)
+first and [umbrella instructions](../CLAUDE.md). HM4 is complete: home runs the EXISTING
+1.0.24 images by digest from public GHCR on the restored copy (alembic `a4b5c6d7e8f9`) with
+`LLM_CLIENT=fake` / `BLOB_STORE=fake`; the durable S3 blob adapter (`app/blob_store.py`,
+`BLOB_STORE=s3`) is in `main` without an image cut. HM5 expects **no backend code change**:
+the home backup runtime is an operator tool in infra `home-server/` (Mac interim) and a
+dedicated in-cluster image later, not a backend image; future releases still publish to ECR
+only (CI publication to GHCR is a follow-up). The current design is [HLD](../docs/planning/hld.md);
+only [02-showcase-backlog.md](../docs/planning/02-showcase-backlog.md) defines upcoming work.
 
 Preserve existing users/OAuth subjects, password hashes, JWT/DB values, projects, CI-token
-hashes, findings, feedback, catalog and chat history. Inspect ORM/migrations/constraints,
-role/default privileges and sequences to build a complete same-snapshot restore comparison.
-Do not log rows, passwords or credential hashes. Historical schema was a4b5c6d7e8f9; verify
-current production instead of assuming it. No blind migration or seed on restored data.
-
-`app/schemas/jenkins.py` and `app/projects/jenkins_service.py` are metadata-only: secrets
-are rejected and legacy refs are nullable/unused. Do not build a BYOK vault or replace
-existing CI tokens. `app/blob_store.py` now has the durable `s3` adapter (E21/HM4:
-content-hash keys, SSE-S3, bounded reads, put-before-catalog-commit; `BLOB_STORE=s3`,
-identity from the SDK default chain — IRSA on EKS, Roles Anywhere at home); the home
-Bedrock role's object-level grant for it is planned in infra, not applied. FE/BE remains
-1.0.24 (this adapter ships with the next reviewed release), both agent images 1.1.3; public
-GHCR distribution is the HM4 copy path. No paid LLM calls. Use fake
-LLM/disposable DB fixtures for focused new restore-related tests; don't rerun unchanged
-app suites or invoke live E2E just for documentation changes.
+hashes, findings, feedback, catalog and chat history. Do not log rows, passwords or credential
+hashes. No blind migration or seed on restored data. `app/schemas/jenkins.py` and
+`app/projects/jenkins_service.py` are metadata-only: secrets are rejected and legacy refs are
+nullable/unused. Do not build a BYOK vault or replace existing CI tokens. Streaming, CORS and
+OAuth callback behavior must survive the tunnel unchanged (HM5 tests them at the staging hosts;
+`PUBLIC_BASE_URL`/`CORS_ALLOW_ORIGINS` come from the gitops home profile). No paid LLM calls.
+Use fake LLM/disposable DB fixtures for any focused new test; don't rerun unchanged app suites
+or invoke live E2E for documentation changes.
 
 **Current working preference (Steve, September 15):** keep progressing and pause only
 for critical architectural decisions. Plan, use focused tests for new behavior, verify and
