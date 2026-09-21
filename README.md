@@ -272,7 +272,15 @@ After P31 the CI test ladder is **unit → container integration → E2E**:
 
 ## CI/CD Pipelines
 
-Two Jenkins **multibranch** pipelines run from this repo, both on the graded persistent controller with
+> **Since September 22, 2026 (E21/HM8):** the Jenkins controller and ECR are retired with the AWS
+> platform. Releases publish to **public GHCR** from GitHub Actions: run the tests locally, merge,
+> push an annotated `vX.Y.Z` tag → [`release-image.yml`](.github/workflows/release-image.yml)
+> builds `linux/amd64` and pushes `ghcr.io/steve-droid/modelmatch-backend:X.Y.Z` (an
+> `agent-vX.Y.Z` tag runs [`release-agent-images.yml`](.github/workflows/release-agent-images.yml)
+> for the two agent images). A release tag is never overwritten; the job summary prints the digest
+> to pin in the gitops home profile. The Jenkins pipelines below are the graded history.
+
+Two Jenkins **multibranch** pipelines ran from this repo, both on the graded persistent controller with
 **no static AWS keys** (the EC2 instance role does ECR + the gated Bedrock call; SSH deploy keys push the
 tag and the gitops bump). Toolchains (uv, Playwright, Trivy, yq) run as pinned throwaway containers.
 
