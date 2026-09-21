@@ -35,7 +35,23 @@ from app.schemas.chat import (
 router = APIRouter(prefix="/projects", tags=["chat"], dependencies=[Depends(require_chat_user)])
 
 
-def get_chat_llm_client() -> LLMClient:
+# Shown when the deployment has no language model behind chat (LLM_CLIENT=fake, e.g.
+# the home cluster): an honest "offline" note instead of the misleading catalog-lookup
+# failure the fake client's empty replay would otherwise produce.
+OFFLINE_ANSWER = (
+    "The grounded assistant is offline on this deployment: no language model is "
+    "configured, so I can't look anything up right now. Your savings dashboard, "
+    "findings and CI-run ingestion keep working — the numbers there are authoritative."
+)
+
+
+def get_chat_llm_client() -> LLMClient | None:
+    """The in-cluster chat client, or None when this deployment runs the offline fake
+    client — the route then answers with `OFFLINE_ANSWER` and never enters the pipeline.
+    Tests override this dependency with fixture clients, so their fake settings don't
+    hit the offline branch."""
+    if get_settings().llm_client == "fake":
+        return None
     return pipeline.build_chat_client()
 
 
@@ -102,9 +118,16 @@ def post_chat(
     payload: ChatRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_chat_user),
-    client: LLMClient = Depends(get_chat_llm_client),
+    client: LLMClient | None = Depends(get_chat_llm_client),
     engine: Engine = Depends(get_chat_engine),
 ) -> ChatAnswerResponse:
+    if client is None:
+        # Offline deployment: same 404/403 contract, then the honest note. Nothing is
+        # persisted or metered — no work was done on the question.
+        _require_owned_project(db, project_id, current_user)
+        return ChatAnswerResponse(
+            answer=OFFLINE_ANSWER, ok=False, refused=False, retrieval_trace=[], debug=None
+        )
     try:
         result = pipeline.answer_question(
             db, project_id, current_user, payload.question, client, engine=engine
