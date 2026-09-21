@@ -409,6 +409,34 @@ def test_post_chat_other_user_403_before_any_llm(http, db_session):
     assert fake._i == 0  # owner check fires before the LLM seam is touched
 
 
+def test_post_chat_without_a_model_answers_offline_and_persists_nothing(client, db_session):
+    """LLM_CLIENT=fake (the home deployment, and the test settings) with the real
+    dependency, no fixture override: the route says the assistant is offline instead of
+    the misleading catalog-lookup failure, keeps the owner contract, and neither persists
+    a turn nor meters tokens."""
+    from app.api.chat import OFFLINE_ANSWER, get_chat_llm_client
+
+    assert get_settings().llm_client == "fake"
+    assert get_chat_llm_client() is None
+    load_seed(db_session)
+    headers, _ = _register(client, db_session, "chat_offline@example.com")
+    pid = _make_project(client, headers)
+    stranger, _ = _register(client, db_session, "chat_offline_stranger@example.com")
+    assert client.post(f"/projects/{pid}/chat", json={"question": "hi"}, headers=stranger).status_code == 403
+
+    resp = client.post(
+        f"/projects/{pid}/chat", json={"question": "How much have I saved?"}, headers=headers
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["answer"] == OFFLINE_ANSWER and "offline" in body["answer"]
+    assert body["ok"] is False and body["refused"] is False
+    assert body["retrievalTrace"] == [] and body["debug"] is None
+    assert db_session.scalar(select(func.count()).select_from(ChatMessage)) == 0
+    assert db_session.scalar(select(func.count()).select_from(LlmCall)) == 0
+    assert db_session.scalar(select(func.count()).select_from(LlmUsage)) == 0
+
+
 def test_post_chat_persists_turn_and_logs_llm_call(http, db_session):
     cl, _ = http
     load_seed(db_session)
