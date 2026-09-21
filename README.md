@@ -26,8 +26,8 @@ decision stays in the user's CI. The agent never edits the repo.
 The baseline is priced, never executed. Savings count only while the acceptance rate is above
 `QUALITY_THRESHOLD`. Run ingestion is deterministic and costs no tokens.
 
-**Catalog ingestion and chat.** These are the two in-cluster LLM uses (Bedrock Nova on AWS). At
-home both use the fake client: the chat replies that the assistant is offline, and the catalog is
+**Catalog ingestion and chat.** These are the two in-cluster LLM uses (Bedrock Nova on AWS). On the
+home server both use the fake client: the chat replies that the assistant is offline, and the catalog is
 the seeded snapshot.
 
 **Auth.** Password login (argon2 + JWT) and Google sign-in (ID token with a server nonce, no
@@ -55,7 +55,7 @@ All configuration comes from the environment (`pydantic-settings`, template in
 |---|---|---|
 | `DATABASE_URL` | compose Postgres | connection string |
 | `JWT_SECRET` | placeholder (rejected) | JWT signing key |
-| `LLM_CLIENT`, `BLOB_STORE` | `fake` | `bedrock` / `s3` on AWS, `fake` at home and in tests |
+| `LLM_CLIENT`, `BLOB_STORE` | `fake` | `bedrock` / `s3` on AWS, `fake` on the home server and in tests |
 | `BEDROCK_MODEL_ID`, `AWS_REGION`, `S3_BUCKET` | Nova Lite, `ap-south-1`, ingestion bucket | the AWS side |
 | `LLM_HOURLY_TOKEN_CAP` | `200000` | hard cap on in-cluster Nova usage; requests above it get 429 |
 | `BASELINE_MODEL_IDS`, `QUALITY_THRESHOLD` | Sonnet/Opus per task, `0.8` | savings baseline and quality gate |
