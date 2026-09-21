@@ -33,7 +33,7 @@ combined image was 997 MB, the v1 review image 291 MB):
 
 > How the agent fits the whole product — the metadata-only Jenkins connection, the two
 > Jenkins credentials it reads, and the savings/quality loop it feeds — is in the
-> [HLD §3b](../../docs/planning/hld.md) and the [Runbook](../docs/runbook.md) (§6). The
+> [HLD §3b](../../docs/planning/hld.md). The
 > run-time config contract with the backend is **HLD §3b.1**.
 
 ## Run

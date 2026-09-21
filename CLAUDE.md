@@ -1,16 +1,22 @@
 # CLAUDE.md — driftplain-backend
 
-## Claude Code continuation — HM5 sustainable public operation — September 17, 2026
+## HM8 done — releases publish to GHCR from GitHub Actions — September 22, 2026
 
-Read [the HM5 handoff](../docs/session-handoffs/E21-home-hosting/2026-09-17-hm5-sustainable-public-operation.md)
-first and [umbrella instructions](../CLAUDE.md). HM4 is complete: home runs the EXISTING
-1.0.24 images by digest from public GHCR on the restored copy (alembic `a4b5c6d7e8f9`) with
-`LLM_CLIENT=fake` / `BLOB_STORE=fake`; the durable S3 blob adapter (`app/blob_store.py`,
-`BLOB_STORE=s3`) is in `main` without an image cut. HM5 expects **no backend code change**:
-the home backup runtime is an operator tool in infra `home-server/` (Mac interim) and a
-dedicated in-cluster image later, not a backend image; future releases still publish to ECR
-only (CI publication to GHCR is a follow-up). The current design is [HLD](../docs/planning/hld.md);
-only [02-showcase-backlog.md](../docs/planning/02-showcase-backlog.md) defines upcoming work.
+Follow the [umbrella instructions](../CLAUDE.md). The home cluster is the only runtime. AWS
+compute was retired on September 21 and HM7 moved `driftplain.dev` home on September 22. Home
+runs backend 1.0.25 (built locally at HM7, answers that the chat is offline) and frontend 1.0.24
+by digest from public GHCR with `LLM_CLIENT=fake` and `BLOB_STORE=fake`.
+
+ECR was deleted at HM8. A `vX.Y.Z` tag runs
+[`release-image.yml`](.github/workflows/release-image.yml); an `agent-vX.Y.Z` tag runs
+[`release-agent-images.yml`](.github/workflows/release-agent-images.yml). Both push to
+`ghcr.io/steve-droid/modelmatch-*`, refuse to overwrite a published tag, and print the digest to
+pin in the gitops home profile. The `Jenkinsfile*` pipelines and the `ci/` stack are kept for
+reference only.
+
+The design is the [HLD](../docs/planning/hld.md). Upcoming work is defined only in
+[02-showcase-backlog.md](../docs/planning/02-showcase-backlog.md): HM6 wording, then P39.
+Sentences below about ECR or Jenkins publishing are historical.
 
 Preserve existing users/OAuth subjects, password hashes, JWT/DB values, projects, CI-token
 hashes, findings, feedback, catalog and chat history. Do not log rows, passwords or credential
@@ -33,7 +39,7 @@ or additional tasks. Keep answers concise.
 > Driftplain was previously Modicum / ModelMatch. The four public repositories use `driftplain-*`; existing infrastructure, images, database names, metrics and CI credential/environment identifiers retain `modelmatch` for compatibility.
 
 **Status: ACTIVE.** FastAPI backend for Driftplain **+ the CI-agent image**. See the umbrella
-`../CLAUDE.md` and the spec in `../docs/planning/` (esp. `architecture.md` and `module-reconciliation.md`).
+`../CLAUDE.md` and the design in `../docs/planning/hld.md`.
 
 ## Responsibilities
 
@@ -62,7 +68,7 @@ or additional tasks. Keep answers concise.
   not failure) unless an **agent-relevant** path changed (`agent/**`, `Jenkinsfile.agent`, agent build
   files, dep lockfiles `pyproject.toml`/`uv.lock`, shared `app/llm/**` + CI-run/finding schema/client,
   `tests/agent/**`) **or** `FORCE_AGENT_BUILD=true`. Feature/PR → build/test/Trivy only; `main` →
-  also publish. See `../docs/planning/mentor-notes-2026-06-15.md` §8.
+  also publish. (Historical — the mentor notes were removed from the umbrella at HM8.)
 - **Auth:** register/login, JWT (argon2), owner-scoping. CI-run ingest authed by a **per-project
   token**, not the user JWT.
 
@@ -73,7 +79,7 @@ app/{api, models, schemas, recommend, ingest (#3), chat (#4), projects, ci, savi
      llm (LLMClient + adapters: bedrock / anthropic / gemini + fake)}
 agent/        (CI-agent image: diff → LLMClient review → findings JSON; shares app.llm + the findings contract)
 migrations/   (alembic; run as a Job/Helm hook, not on startup)
-tests/        (unit: no containers · integration: testcontainers Postgres · all fake LLM + fixtures; live LLM only in the gated `e2e-live` E2E path on main/#e2e-live — see ../docs/planning/mentor-notes-2026-06-15.md)
+tests/        (unit: no containers · integration: testcontainers Postgres · all fake LLM + fixtures; live LLM only in the gated `e2e-live` E2E path on main/#e2e-live — historical Jenkins path)
 ```
 
 ## Rules
