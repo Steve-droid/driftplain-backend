@@ -6,10 +6,6 @@ Driftplain picks a cheaper LLM for code review from benchmark data, runs it as a
 the user's CI on the user's own API key, and shows the money saved while review quality holds.
 This repo is the FastAPI backend and the source of the two CI agent images.
 
-Driftplain was previously called Modicum and ModelMatch. Image, database and metric names still
-use `modelmatch`. The site has been live since September 12, 2026 and runs from a home cluster
-since September 22, 2026.
-
 ## What it does
 
 **Recommender.** The user describes a task and a budget. The backend filters the benchmark
@@ -103,7 +99,7 @@ home profile.
 
 | Tag | Workflow | Image |
 |---|---|---|
-| `vX.Y.Z` | [`release-image.yml`](.github/workflows/release-image.yml) | `ghcr.io/steve-droid/modelmatch-backend:X.Y.Z` |
+| `vX.Y.Z` | [`release-image.yml`](.github/workflows/release-image.yml) | `ghcr.io/steve-droid/modelmatch-backend:X.Y.Z` (images keep the project's old `modelmatch` name) |
 | `agent-vX.Y.Z` | [`release-agent-images.yml`](.github/workflows/release-agent-images.yml) | `ghcr.io/steve-droid/modelmatch-agent:X.Y.Z` and `modelmatch-agent-security:X.Y.Z` |
 
 Deployment is a separate digest bump in
