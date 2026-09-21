@@ -1,0 +1,70 @@
+# E21/HM8 — publish a backend release image to public GHCR (the runtime registry since the
+# AWS retirement; the Jenkins controller and ECR are gone). Trigger: an annotated SemVer tag
+# `vX.Y.Z` pushed after the merge. Publish only — tests run before the tag (see README).
+# No third-party actions beyond checkout: plain docker buildx on the amd64 runner, the same
+# flags as the local 1.0.25 build. Deploying is a separate reviewed digest bump in gitops.
+name: release-image
+
+on:
+  push:
+    tags: ["v[0-9]*.[0-9]*.[0-9]*"]  # GitHub glob (not a regex): vX.Y.Z
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image tag to publish (X.Y.Z, or a throwaway such as 0.0.0-ci-test-1)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: release-image-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/steve-droid/modelmatch-backend
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then v="${GITHUB_REF_NAME#v}"; else v="${{ inputs.version }}"; fi
+          case "$v" in *[!A-Za-z0-9._-]*|"") echo "::error::invalid version '$v'"; exit 1;; esac
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+          echo "publishing $IMAGE:$v from $GITHUB_SHA"
+
+      - name: Refuse to overwrite a published tag
+        run: |
+          if docker manifest inspect "$IMAGE:$VERSION" >/dev/null 2>&1; then
+            echo "::error::$IMAGE:$VERSION already exists — a release tag is immutable"; exit 1
+          fi
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push (linux/amd64)
+        run: |
+          docker buildx build --platform linux/amd64 --provenance=false --sbom=false \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            -t "$IMAGE:$VERSION" --push .
+
+      - name: Record the digest
+        run: |
+          digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{ .Manifest.Digest }}')
+          {
+            echo "## $IMAGE:$VERSION"
+            echo
+            echo "- digest: \`$digest\`"
+            echo "- revision: \`$GITHUB_SHA\`"
+            echo "- gitops home profile: set \`backend.image.digest\` in \`charts/modelmatch/values-home-server.yaml\` to that digest"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$IMAGE@$digest"

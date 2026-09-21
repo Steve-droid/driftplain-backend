@@ -1,0 +1,77 @@
+# E21/HM8 — publish the two CI-agent images to public GHCR on an `agent-vX.Y.Z` tag
+# (the agent line is versioned apart from the backend's `vX.Y.Z`, as Jenkinsfile.agent did).
+# Both build from the repo root: agent/Dockerfile (review agent) and agent/Dockerfile.security
+# (OpenCode security agent). Publish only; deploying is the gitops AGENT_IMAGE /
+# AGENT_SECURITY_IMAGE digest bump.
+name: release-agent-images
+
+on:
+  push:
+    tags: ["agent-v[0-9]*.[0-9]*.[0-9]*"]  # GitHub glob (not a regex): agent-vX.Y.Z
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image tag to publish (X.Y.Z, or a throwaway such as 0.0.0-ci-test-1)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: release-agent-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/steve-droid/modelmatch-agent
+            dockerfile: agent/Dockerfile
+          - image: ghcr.io/steve-droid/modelmatch-agent-security
+            dockerfile: agent/Dockerfile.security
+    env:
+      IMAGE: ${{ matrix.image }}
+      DOCKERFILE: ${{ matrix.dockerfile }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then v="${GITHUB_REF_NAME#agent-v}"; else v="${{ inputs.version }}"; fi
+          case "$v" in *[!A-Za-z0-9._-]*|"") echo "::error::invalid version '$v'"; exit 1;; esac
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+          echo "publishing $IMAGE:$v from $GITHUB_SHA ($DOCKERFILE)"
+
+      - name: Refuse to overwrite a published tag
+        run: |
+          if docker manifest inspect "$IMAGE:$VERSION" >/dev/null 2>&1; then
+            echo "::error::$IMAGE:$VERSION already exists — a release tag is immutable"; exit 1
+          fi
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push (linux/amd64)
+        run: |
+          docker buildx build --platform linux/amd64 --provenance=false --sbom=false \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            -f "$DOCKERFILE" -t "$IMAGE:$VERSION" --push .
+
+      - name: Record the digest
+        run: |
+          digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{ .Manifest.Digest }}')
+          {
+            echo "## $IMAGE:$VERSION"
+            echo
+            echo "- digest: \`$digest\`"
+            echo "- revision: \`$GITHUB_SHA\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$IMAGE@$digest"
