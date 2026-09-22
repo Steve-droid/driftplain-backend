@@ -17,7 +17,6 @@ from app.models import (
     JenkinsConnection,
     LlmCall,
     Model,
-    ProactiveAlert,
     Project,
     RecommendationOption,
     RequirementsProfile,
@@ -426,7 +425,7 @@ def test_patch_requires_auth_401(client):
 def test_delete_removes_project_and_cascades(client, db_session):
     """DELETE removes the project AND its whole subtree via the DB FK cascade —
     Jenkins connection, ci_run→ci_finding→finding_feedback, llm_call, chat_message→
-    retrieval_trace, proactive_alert — with no FK violation."""
+    retrieval_trace — with no FK violation."""
     load_seed(db_session)
     headers, user_id = _register(client, db_session, "p_del@example.com")
     pick = _make_pick(client, headers)
@@ -443,15 +442,14 @@ def test_delete_removes_project_and_cascades(client, db_session):
     finding = CiFinding(ci_run_id=run.id, category="security", severity="high", message="m")
     llm = LlmCall(ci_run_id=run.id, purpose="agent", status="ok")
     msg = ChatMessage(project_id=pid, role="user", text="hi")
-    alert = ProactiveAlert(project_id=pid, kind="upgrade", status="open")
-    db_session.add_all([finding, llm, msg, alert])
+    db_session.add_all([finding, llm, msg])
     db_session.flush()
     fb = FindingFeedback(ci_finding_id=finding.id, verdict="accept", user_id=user_id)
     trace = RetrievalTrace(chat_message_id=msg.id, kind="savings", ref="r")
     db_session.add_all([fb, trace])
     db_session.commit()
     run_id, finding_id, llm_id = run.id, finding.id, llm.id
-    fb_id, msg_id, trace_id, alert_id = fb.id, msg.id, trace.id, alert.id
+    fb_id, msg_id, trace_id = fb.id, msg.id, trace.id
 
     resp = client.delete(f"/projects/{pid}", headers=headers)
     assert resp.status_code == 204
@@ -467,7 +465,6 @@ def test_delete_removes_project_and_cascades(client, db_session):
     assert db_session.get(LlmCall, llm_id) is None
     assert db_session.get(ChatMessage, msg_id) is None
     assert db_session.get(RetrievalTrace, trace_id) is None
-    assert db_session.get(ProactiveAlert, alert_id) is None
 
 
 def test_delete_only_targets_its_own_subtree(client, db_session):

@@ -17,6 +17,7 @@ from app import __version__
 from app.api import (
     auth,
     benchmarks,
+    catalog,
     chat,
     ci,
     findings,
@@ -52,6 +53,7 @@ app.add_middleware(MetricsMiddleware)
 
 app.include_router(auth.router)
 app.include_router(benchmarks.router)
+app.include_router(catalog.router)
 app.include_router(recommend.router)
 app.include_router(projects.router)
 app.include_router(jenkins.router)

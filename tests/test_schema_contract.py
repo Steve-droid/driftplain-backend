@@ -57,6 +57,52 @@ CONTRACT = {
         "harness", "harnessVendor", "taskType", "contextWindow", "source", "measuredAt",
         "benchmarkAsOf", "benchmarkNotes",
     },
+    "CatalogPageInfo": {"limit", "nextCursor", "hasMore"},
+    "CatalogModelOut": {"id", "slug", "name", "organization"},
+    "CatalogProviderOut": {"id", "slug", "name"},
+    "CatalogBenchmarkOut": {
+        "id", "slug", "name", "description", "tooltip", "methodologyUrl", "limitations",
+    },
+    "CatalogMetricValueOut": {
+        "metricId", "key", "name", "description", "unit", "direction", "value",
+        "reportedValue", "missingReason", "category", "subset", "aggregation",
+        "confidenceLow", "confidenceHigh", "confidenceLevel", "uncertaintyType",
+        "sampleSize", "denominator", "attempts",
+    },
+    "CatalogSearchItemOut": {"type", "id", "name", "subtitle"},
+    "CatalogProviderDeploymentOut": {
+        "id", "providerId", "providerName", "modelId", "deploymentKey", "name", "variant",
+    },
+    "CatalogModelDetailOut": {
+        "id", "slug", "name", "organization", "description", "aliases", "deployments",
+    },
+    "CatalogProviderDetailOut": {
+        "id", "slug", "name", "description", "url", "deployments",
+    },
+    "CatalogProtocolOut": {
+        "id", "name", "runner", "runnerVersion", "methodology", "configuration",
+    },
+    "CatalogBenchmarkVersionOut": {
+        "id", "version", "releaseDate", "description", "methodology", "methodologyUrl",
+        "protocols",
+    },
+    "CatalogBenchmarkDetailOut": {
+        "id", "slug", "name", "description", "tooltip", "methodologyUrl", "limitations",
+        "versions", "taskTypes",
+    },
+    "CatalogObservationOut": {
+        "id", "benchmarkId", "benchmarkName", "versionId", "version", "protocolId",
+        "protocol", "evaluatorId", "evaluator", "sourceSnapshotId", "sourceName",
+        "sourceUrl", "sourceContentHash", "sourceFetchedAt", "sourcePublicationDate",
+        "sourceModelLabel", "modelId", "modelName", "providerDeploymentId", "providerId",
+        "providerName", "origin", "provenanceStatus", "taskType", "contextWindow",
+        "reportedCostPerMtok", "observedAt", "metrics",
+    },
+    "CatalogModelPage": {"items", "pageInfo"},
+    "CatalogProviderPage": {"items", "pageInfo"},
+    "CatalogBenchmarkPage": {"items", "pageInfo"},
+    "CatalogObservationPage": {"items", "pageInfo"},
+    "CatalogSearchPage": {"items", "pageInfo"},
 }
 
 

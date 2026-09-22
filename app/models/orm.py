@@ -23,6 +23,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     Index,
     Numeric,
@@ -47,7 +48,6 @@ FEEDBACK_VERDICT = ENUM("accept", "reject", name="feedback_verdict", create_type
 CHAT_ROLE = ENUM("user", "assistant", name="chat_role", create_type=False)
 TRACE_KIND = ENUM("savings", "benchmark_result", name="trace_kind", create_type=False)
 LLM_PURPOSE = ENUM("ingestion", "chat", "agent", name="llm_purpose", create_type=False)
-ALERT_KIND = ENUM("upgrade", "downgrade", name="alert_kind", create_type=False)
 AGENT_PROVIDER = ENUM(
     "anthropic",
     "gemini",
@@ -210,6 +210,466 @@ class BenchmarkResult(Base):
     harness: Mapped[Optional[Harness]] = relationship()
     benchmark: Mapped[Benchmark] = relationship()
     source_document: Mapped[Optional[SourceDocument]] = relationship()
+
+
+class CatalogBenchmarkFamily(Base):
+    """Public benchmark identity, independent of any executable model runtime."""
+
+    __tablename__ = "catalog_benchmark_family"
+    __table_args__ = (
+        UniqueConstraint("slug", name="uq_catalog_benchmark_family_slug"),
+        UniqueConstraint(
+            "legacy_benchmark_id", name="uq_catalog_benchmark_family_legacy_id"
+        ),
+        Index("ix_catalog_benchmark_family_name", "name"),
+        Index(
+            "ix_catalog_benchmark_family_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(String(200), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    tooltip: Mapped[Optional[str]] = mapped_column(Text)
+    methodology_url: Mapped[Optional[str]] = mapped_column(String(1024))
+    limitations: Mapped[Optional[str]] = mapped_column(Text)
+    legacy_benchmark_id: Mapped[Optional[int]] = mapped_column(Integer)
+
+
+class CatalogBenchmarkVersion(Base):
+    __tablename__ = "catalog_benchmark_version"
+    __table_args__ = (
+        UniqueConstraint(
+            "benchmark_family_id", "version", name="uq_catalog_benchmark_version"
+        ),
+        UniqueConstraint(
+            "id", "benchmark_family_id", name="uq_catalog_benchmark_version_family"
+        ),
+        Index("ix_catalog_benchmark_version_family", "benchmark_family_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    benchmark_family_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_benchmark_family.id", ondelete="CASCADE"), nullable=False
+    )
+    version: Mapped[str] = mapped_column(String(255), nullable=False)
+    release_date: Mapped[Optional[date]] = mapped_column(Date)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    methodology: Mapped[Optional[str]] = mapped_column(Text)
+    methodology_url: Mapped[Optional[str]] = mapped_column(String(1024))
+
+
+class CatalogProtocol(Base):
+    __tablename__ = "catalog_protocol"
+    __table_args__ = (
+        UniqueConstraint(
+            "benchmark_version_id",
+            "configuration_fingerprint",
+            name="uq_catalog_protocol_configuration",
+        ),
+        UniqueConstraint(
+            "id", "benchmark_version_id", name="uq_catalog_protocol_version"
+        ),
+        Index("ix_catalog_protocol_version", "benchmark_version_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    benchmark_version_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_benchmark_version.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    configuration_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    runner: Mapped[Optional[str]] = mapped_column(String(255))
+    runner_version: Mapped[Optional[str]] = mapped_column(String(255))
+    methodology: Mapped[Optional[str]] = mapped_column(Text)
+    configuration: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+
+
+class CatalogEvaluator(Base):
+    __tablename__ = "catalog_evaluator"
+    __table_args__ = (
+        UniqueConstraint(
+            "name",
+            "organization",
+            name="uq_catalog_evaluator_name_org",
+            postgresql_nulls_not_distinct=True,
+        ),
+        Index("ix_catalog_evaluator_name", "name"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    organization: Mapped[Optional[str]] = mapped_column(String(255))
+    url: Mapped[Optional[str]] = mapped_column(String(1024))
+
+
+class CatalogSource(Base):
+    __tablename__ = "catalog_source"
+    __table_args__ = (
+        UniqueConstraint("slug", name="uq_catalog_source_slug"),
+        Index("ix_catalog_source_name", "name"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(String(200), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    definition_url: Mapped[Optional[str]] = mapped_column(String(1024))
+    result_url: Mapped[Optional[str]] = mapped_column(String(1024))
+    license_text: Mapped[Optional[str]] = mapped_column(Text)
+    attribution: Mapped[Optional[str]] = mapped_column(Text)
+    access_notes: Mapped[Optional[str]] = mapped_column(Text)
+
+
+class CatalogSourceSnapshot(Base):
+    __tablename__ = "catalog_source_snapshot"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_id", "content_hash", name="uq_catalog_source_snapshot_hash"
+        ),
+        CheckConstraint(
+            "content_hash ~ '^[0-9a-f]{64}$'", name="ck_catalog_snapshot_sha256"
+        ),
+        CheckConstraint(
+            "byte_count IS NULL OR byte_count >= 0", name="ck_catalog_snapshot_bytes"
+        ),
+        Index("ix_catalog_source_snapshot_source", "source_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_source.id", ondelete="RESTRICT"), nullable=False
+    )
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    artifact_uri: Mapped[Optional[str]] = mapped_column(String(1024))
+    fetched_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    publication_date: Mapped[Optional[date]] = mapped_column(Date)
+    content_type: Mapped[Optional[str]] = mapped_column(String(255))
+    byte_count: Mapped[Optional[int]] = mapped_column(BigInteger)
+
+
+class CatalogModel(Base):
+    __tablename__ = "catalog_model"
+    __table_args__ = (
+        UniqueConstraint("slug", name="uq_catalog_model_slug"),
+        UniqueConstraint("legacy_model_id", name="uq_catalog_model_legacy_id"),
+        Index("ix_catalog_model_name", "name"),
+        Index("ix_catalog_model_organization", "organization"),
+        Index(
+            "ix_catalog_model_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+        Index(
+            "ix_catalog_model_org_trgm",
+            "organization",
+            postgresql_using="gin",
+            postgresql_ops={"organization": "gin_trgm_ops"},
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(String(200), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    organization: Mapped[Optional[str]] = mapped_column(String(255))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    legacy_model_id: Mapped[Optional[int]] = mapped_column(Integer)
+
+
+class CatalogProvider(Base):
+    __tablename__ = "catalog_provider"
+    __table_args__ = (
+        UniqueConstraint("slug", name="uq_catalog_provider_slug"),
+        Index("ix_catalog_provider_name", "name"),
+        Index(
+            "ix_catalog_provider_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(String(200), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    url: Mapped[Optional[str]] = mapped_column(String(1024))
+
+
+class CatalogProviderDeployment(Base):
+    __tablename__ = "catalog_provider_deployment"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider_id", "deployment_key", name="uq_catalog_provider_deployment"
+        ),
+        UniqueConstraint(
+            "id", "model_id", name="uq_catalog_provider_deployment_model"
+        ),
+        Index("ix_catalog_deployment_model", "model_id"),
+        Index("ix_catalog_deployment_provider", "provider_id"),
+        Index("ix_catalog_deployment_name", "name"),
+        Index(
+            "ix_catalog_deployment_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+        Index(
+            "ix_catalog_deployment_key_trgm",
+            "deployment_key",
+            postgresql_using="gin",
+            postgresql_ops={"deployment_key": "gin_trgm_ops"},
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    provider_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_provider.id", ondelete="RESTRICT"), nullable=False
+    )
+    model_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_model.id", ondelete="RESTRICT"), nullable=False
+    )
+    deployment_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    variant: Mapped[Optional[str]] = mapped_column(String(255))
+    endpoint_url: Mapped[Optional[str]] = mapped_column(String(1024))
+
+
+class CatalogModelAlias(Base):
+    __tablename__ = "catalog_model_alias"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_id", "source_label", name="uq_catalog_model_alias_source_label"
+        ),
+        CheckConstraint(
+            "resolution_status IN ('resolved', 'unresolved', 'ambiguous')",
+            name="ck_catalog_model_alias_status",
+        ),
+        CheckConstraint(
+            "(resolution_status = 'resolved' AND catalog_model_id IS NOT NULL) OR "
+            "(resolution_status IN ('unresolved', 'ambiguous') AND catalog_model_id IS NULL)",
+            name="ck_catalog_model_alias_target",
+        ),
+        Index("ix_catalog_model_alias_normalized", "normalized_label"),
+        Index("ix_catalog_model_alias_model", "catalog_model_id"),
+        Index(
+            "ix_catalog_model_alias_normalized_trgm",
+            "normalized_label",
+            postgresql_using="gin",
+            postgresql_ops={"normalized_label": "gin_trgm_ops"},
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_source.id", ondelete="CASCADE"), nullable=False
+    )
+    source_label: Mapped[str] = mapped_column(String(512), nullable=False)
+    normalized_label: Mapped[str] = mapped_column(String(512), nullable=False)
+    resolution_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    catalog_model_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("catalog_model.id", ondelete="RESTRICT")
+    )
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    review_note: Mapped[Optional[str]] = mapped_column(Text)
+
+
+class CatalogObservation(Base):
+    __tablename__ = "catalog_observation"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["protocol_id", "benchmark_version_id"],
+            ["catalog_protocol.id", "catalog_protocol.benchmark_version_id"],
+            name="fk_catalog_observation_protocol_version",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["provider_deployment_id", "catalog_model_id"],
+            ["catalog_provider_deployment.id", "catalog_provider_deployment.model_id"],
+            name="fk_catalog_observation_deployment_model",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint(
+            "source_snapshot_id",
+            "source_record_locator",
+            "configuration_fingerprint",
+            "record_fingerprint",
+            name="uq_catalog_observation_identity",
+            postgresql_nulls_not_distinct=True,
+        ),
+        CheckConstraint(
+            "origin IN ('source', 'legacy_backfill')", name="ck_catalog_observation_origin"
+        ),
+        CheckConstraint(
+            "provenance_status IN ('complete', 'incomplete')",
+            name="ck_catalog_observation_provenance",
+        ),
+        CheckConstraint(
+            "protocol_id IS NULL OR benchmark_version_id IS NOT NULL",
+            name="ck_catalog_observation_protocol_version",
+        ),
+        CheckConstraint(
+            "provider_deployment_id IS NULL OR catalog_model_id IS NOT NULL",
+            name="ck_catalog_observation_deployment_model",
+        ),
+        CheckConstraint(
+            "provenance_status = 'incomplete' OR "
+            "(benchmark_version_id IS NOT NULL AND protocol_id IS NOT NULL AND "
+            " evaluator_id IS NOT NULL AND source_snapshot_id IS NOT NULL)",
+            name="ck_catalog_observation_complete_provenance",
+        ),
+        Index("ix_catalog_observation_family", "benchmark_family_id"),
+        Index("ix_catalog_observation_version", "benchmark_version_id"),
+        Index("ix_catalog_observation_protocol", "protocol_id"),
+        Index("ix_catalog_observation_evaluator", "evaluator_id"),
+        Index("ix_catalog_observation_snapshot", "source_snapshot_id"),
+        Index("ix_catalog_observation_model", "catalog_model_id"),
+        Index("ix_catalog_observation_deployment", "provider_deployment_id"),
+        Index("ix_catalog_observation_legacy_result", "legacy_benchmark_result_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    benchmark_family_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_benchmark_family.id", ondelete="RESTRICT"), nullable=False
+    )
+    benchmark_version_id: Mapped[Optional[int]] = mapped_column(Integer)
+    protocol_id: Mapped[Optional[int]] = mapped_column(Integer)
+    evaluator_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("catalog_evaluator.id", ondelete="RESTRICT")
+    )
+    source_snapshot_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("catalog_source_snapshot.id", ondelete="RESTRICT")
+    )
+    source_record_locator: Mapped[str] = mapped_column(String(1024), nullable=False)
+    configuration_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    record_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_model_label: Mapped[str] = mapped_column(String(512), nullable=False)
+    catalog_model_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("catalog_model.id", ondelete="RESTRICT")
+    )
+    provider_deployment_id: Mapped[Optional[int]] = mapped_column(Integer)
+    origin: Mapped[str] = mapped_column(String(32), nullable=False)
+    provenance_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_url: Mapped[Optional[str]] = mapped_column(String(1024))
+    task_type: Mapped[Optional[str]] = mapped_column(String(64))
+    context_window: Mapped[Optional[int]] = mapped_column(Integer)
+    reported_cost_per_mtok: Mapped[Optional[Decimal]] = mapped_column(_MONEY)
+    observed_at: Mapped[Optional[date]] = mapped_column(Date)
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    legacy_benchmark_result_id: Mapped[Optional[int]] = mapped_column(Integer)
+    legacy_source_document_id: Mapped[Optional[int]] = mapped_column(Integer)
+    legacy_harness_id: Mapped[Optional[int]] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class CatalogMetricDefinition(Base):
+    __tablename__ = "catalog_metric_definition"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["benchmark_version_id", "benchmark_family_id"],
+            [
+                "catalog_benchmark_version.id",
+                "catalog_benchmark_version.benchmark_family_id",
+            ],
+            name="fk_catalog_metric_version_family",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint(
+            "benchmark_family_id",
+            "benchmark_version_id",
+            "key",
+            name="uq_catalog_metric_scope_key",
+            postgresql_nulls_not_distinct=True,
+        ),
+        CheckConstraint(
+            "direction IS NULL OR direction IN ('higher', 'lower', 'non_ranking')",
+            name="ck_catalog_metric_direction",
+        ),
+        CheckConstraint(
+            "minimum IS NULL OR maximum IS NULL OR minimum <= maximum",
+            name="ck_catalog_metric_range",
+        ),
+        Index("ix_catalog_metric_family", "benchmark_family_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    benchmark_family_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    benchmark_version_id: Mapped[Optional[int]] = mapped_column(Integer)
+    key: Mapped[str] = mapped_column(String(128), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    unit: Mapped[Optional[str]] = mapped_column(String(128))
+    direction: Mapped[Optional[str]] = mapped_column(String(32))
+    minimum: Mapped[Optional[Decimal]] = mapped_column(Numeric(20, 8))
+    maximum: Mapped[Optional[Decimal]] = mapped_column(Numeric(20, 8))
+
+
+class CatalogObservationMetric(Base):
+    __tablename__ = "catalog_observation_metric"
+    __table_args__ = (
+        UniqueConstraint(
+            "observation_id",
+            "metric_definition_id",
+            "category",
+            "subset",
+            "aggregation",
+            name="uq_catalog_observation_metric_context",
+            postgresql_nulls_not_distinct=True,
+        ),
+        CheckConstraint(
+            "confidence_low IS NULL OR confidence_high IS NULL OR "
+            "confidence_low <= confidence_high",
+            name="ck_catalog_observation_metric_interval",
+        ),
+        Index("ix_catalog_observation_metric_observation", "observation_id"),
+        Index("ix_catalog_observation_metric_definition", "metric_definition_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    observation_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_observation.id", ondelete="CASCADE"), nullable=False
+    )
+    metric_definition_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_metric_definition.id", ondelete="RESTRICT"), nullable=False
+    )
+    value: Mapped[Optional[Decimal]] = mapped_column(Numeric(20, 8))
+    reported_value: Mapped[Optional[str]] = mapped_column(String(255))
+    missing_reason: Mapped[Optional[str]] = mapped_column(String(255))
+    category: Mapped[Optional[str]] = mapped_column(String(255))
+    subset: Mapped[Optional[str]] = mapped_column(String(255))
+    aggregation: Mapped[Optional[str]] = mapped_column(String(255))
+    confidence_low: Mapped[Optional[Decimal]] = mapped_column(Numeric(20, 8))
+    confidence_high: Mapped[Optional[Decimal]] = mapped_column(Numeric(20, 8))
+    confidence_level: Mapped[Optional[Decimal]] = mapped_column(Numeric(8, 4))
+    uncertainty_type: Mapped[Optional[str]] = mapped_column(String(128))
+    sample_size: Mapped[Optional[int]] = mapped_column(Integer)
+    denominator: Mapped[Optional[int]] = mapped_column(Integer)
+    attempts: Mapped[Optional[int]] = mapped_column(Integer)
+
+
+class CatalogTaskBenchmark(Base):
+    __tablename__ = "catalog_task_benchmark"
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "task_type", "benchmark_family_id", name="pk_catalog_task_benchmark"
+        ),
+        Index("ix_catalog_task_benchmark_family", "benchmark_family_id"),
+    )
+
+    task_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    benchmark_family_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_benchmark_family.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[Optional[str]] = mapped_column(String(64))
+    rationale: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class RequirementsProfile(Base):
@@ -446,17 +906,6 @@ class LlmCall(Base):
     tokens_in: Mapped[Optional[int]] = mapped_column(Integer)
     tokens_out: Mapped[Optional[int]] = mapped_column(Integer)
     latency_ms: Mapped[Optional[int]] = mapped_column(Integer)
-    status: Mapped[Optional[str]] = mapped_column(String(32))
-
-
-class ProactiveAlert(Base):
-    __tablename__ = "proactive_alert"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    project_id: Mapped[int] = mapped_column(ForeignKey("project.id", ondelete="CASCADE"))
-    kind: Mapped[str] = mapped_column(ALERT_KIND)
-    reason: Mapped[Optional[str]] = mapped_column(Text)
-    evidence: Mapped[Optional[dict]] = mapped_column(JSONB)
     status: Mapped[Optional[str]] = mapped_column(String(32))
 
 
