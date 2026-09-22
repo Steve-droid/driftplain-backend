@@ -1,16 +1,16 @@
 # syntax=docker/dockerfile:1
 #
-# modelmatch-agent-security — the SECURITY task image: a bounded OpenCode agentic loop
+# driftplain-agent-security — the SECURITY task image: a bounded OpenCode agentic loop
 # over a READ-ONLY checkout (RealVuln's auditor prompt, Semgrep JSON → findings with CWE,
 # any critical finding → non-zero exit → the Jenkins stage fails). The review task ships
 # as its own image: agent/Dockerfile.
 #
 # Build from the REPO ROOT as context:
-#     docker buildx build --platform linux/amd64 -f agent/Dockerfile.security -t modelmatch-agent-security .
+#     docker buildx build --platform linux/amd64 -f agent/Dockerfile.security -t driftplain-agent-security .
 # Run (BYOK key passed BY NAME, workspace read-only, sandbox flags):
 #     docker run --rm -v "$PWD:/workspace:ro" --cap-drop ALL --security-opt no-new-privileges \
 #       --memory 2g --cpus 2 --tmpfs /tmp:size=256m \
-#       -e AGENT_MODEL=deepseek/deepseek-v4-flash -e DEEPSEEK_API_KEY modelmatch-agent-security
+#       -e AGENT_MODEL=deepseek/deepseek-v4-flash -e DEEPSEEK_API_KEY driftplain-agent-security
 #
 # Size discipline (measured 2026-09-08; the first cut — Node 22 + npm install — was 997 MB):
 #   * OpenCode is ONE static-ish binary (bun-compiled; links only libc/libm/libdl). It is

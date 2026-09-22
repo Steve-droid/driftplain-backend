@@ -31,9 +31,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/steve-droid/modelmatch-agent
+          - image: ghcr.io/steve-droid/driftplain-agent
             dockerfile: agent/Dockerfile
-          - image: ghcr.io/steve-droid/modelmatch-agent-security
+          - image: ghcr.io/steve-droid/driftplain-agent-security
             dockerfile: agent/Dockerfile.security
     env:
       IMAGE: ${{ matrix.image }}
@@ -73,5 +73,7 @@ jobs:
             echo
             echo "- digest: \`$digest\`"
             echo "- revision: \`$GITHUB_SHA\`"
+            echo "- use \`$IMAGE@$digest\` in the matching \`AGENT_IMAGE\` or \`AGENT_SECURITY_IMAGE\` setting"
+            echo "- first publication: make the package public and verify an anonymous pull before use"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "$IMAGE@$digest"

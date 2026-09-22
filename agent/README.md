@@ -1,4 +1,9 @@
-# Driftplain CI agent — two tasks, two images, one codebase
+# Driftplain CI agent
+
+New releases publish as `ghcr.io/steve-droid/driftplain-agent` and
+`ghcr.io/steve-droid/driftplain-agent-security`. Both continue the existing agent version
+sequence. The old `modelmatch-agent` and `modelmatch-agent-security` packages remain available.
+See the [image naming policy](https://github.com/Steve-droid/driftplain/blob/main/IMAGE-NAMING.md).
 
 The product's **proof**: a standalone image (built from this repo) that runs in the
 **user's** Jenkins on the **user's** key (BYOK), does real LLM work on their code, and
@@ -7,8 +12,8 @@ tasks, selected per project, each shipped as its own image from the same `agent/
 
 | Task | Image (Dockerfile) | What runs | Gate | Runtime |
 |---|---|---|---|---|
-| **`review`** | `modelmatch-agent` (`agent/Dockerfile`), **172 MB** | one LLM call over the PR **diff**, security + style findings | any **high/critical** finding fails | our provider-agnostic `LLMClient` (Anthropic · Gemini · Bedrock) |
-| **`security`** | `modelmatch-agent-security` (`agent/Dockerfile.security`), **328 MB** | an **OpenCode agentic loop** over a **read-only checkout**, RealVuln's auditor prompt (bundled verbatim), Semgrep-shaped findings **with a CWE** | any **critical** finding fails | the OpenCode 1.18.20 **binary** (DeepSeek · OpenAI · Anthropic · Gemini · Bedrock) |
+| **`review`** | `driftplain-agent` (`agent/Dockerfile`), **172 MB** | one LLM call over the PR **diff**, security + style findings | any **high/critical** finding fails | our provider-agnostic `LLMClient` (Anthropic · Gemini · Bedrock) |
+| **`security`** | `driftplain-agent-security` (`agent/Dockerfile.security`), **328 MB** | an **OpenCode agentic loop** over a **read-only checkout**, RealVuln's auditor prompt (bundled verbatim), Semgrep-shaped findings **with a CWE** | any **critical** finding fails | the OpenCode 1.18.20 **binary** (DeepSeek · OpenAI · Anthropic · Gemini · Bedrock) |
 
 Each image bakes `AGENT_IMAGE_TASK`; running a project of the other task against it is a
 config error (exit `4`) naming the right image — never an `ImportError` (the review image
@@ -40,17 +45,17 @@ combined image was 997 MB, the v1 review image 291 MB):
 
 ```bash
 # build (context = repo root; Jenkins agents are amd64, the M4 laptop is arm64)
-docker buildx build --platform linux/amd64 -f agent/Dockerfile          -t modelmatch-agent .
-docker buildx build --platform linux/amd64 -f agent/Dockerfile.security -t modelmatch-agent-security .
+docker buildx build --platform linux/amd64 -f agent/Dockerfile          -t driftplain-agent .
+docker buildx build --platform linux/amd64 -f agent/Dockerfile.security -t driftplain-agent-security .
 
 # review a diff (stdin); offline fake client
-git diff origin/main...HEAD | docker run -i --rm -e LLM_CLIENT=fake modelmatch-agent
+git diff origin/main...HEAD | docker run -i --rm -e LLM_CLIENT=fake driftplain-agent
 
 # security scan of a checkout, read-only, sandboxed (BYOK key passed BY NAME)
 docker run --rm -v "$PWD:/workspace:ro" \
   --cap-drop ALL --security-opt no-new-privileges --memory 2g --cpus 2 --tmpfs /tmp:size=256m \
   -e AGENT_MODEL=deepseek/deepseek-v4-flash -e DEEPSEEK_API_KEY \
-  modelmatch-agent-security
+  driftplain-agent-security
 
 # or locally (review)
 git diff origin/main...HEAD | python -m agent
@@ -177,7 +182,7 @@ stage('Driftplain Security Analysis') {
           -e MODELMATCH_API_URL=https://api.<ip>.sslip.io -e MODELMATCH_PROJECT_ID=7 \\
           -e MODELMATCH_CI_TOKEN -e MODELMATCH_POST_RESULT=true -e BUILD_TAG \\
           -e DEEPSEEK_API_KEY \\
-          <registry>/modelmatch-agent-security:1.1.1 > result.json
+          <registry>/driftplain-agent-security:1.1.1 > result.json
         AGENT_RC=$?
         case "$AGENT_RC" in
           0)   echo "Driftplain: scan completed, no blocking findings." ;;

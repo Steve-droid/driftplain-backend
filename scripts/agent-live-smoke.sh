@@ -31,7 +31,7 @@ export AGENT_MAX_TOKENS="${AGENT_MAX_TOKENS:-512}"
 export AGENT_TOKEN_CEILING="${AGENT_TOKEN_CEILING:-4000}"
 
 RUNNER="${RUNNER:-container}"            # container | python
-IMAGE="${IMAGE:-modelmatch-agent:smoke}"
+IMAGE="${IMAGE:-driftplain-agent:smoke}"
 
 # Optional ingest: set ALL THREE to POST results into a local backend.
 BACKEND_URL="${BACKEND_URL:-}"

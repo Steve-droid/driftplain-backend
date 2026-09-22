@@ -75,13 +75,13 @@ def _remap_credentials() -> None:
 
 
 def _check_image_task(task: str) -> None:
-    """Two images, one codebase: `modelmatch-agent` (review, the LLM SDKs) and
-    `modelmatch-agent-security` (OpenCode). Each bakes AGENT_IMAGE_TASK; a project
+    """Two images, one codebase: `driftplain-agent` (review, the LLM SDKs) and
+    `driftplain-agent-security` (OpenCode). Each bakes AGENT_IMAGE_TASK; a project
     whose task does not match the image it was run with is a config error, not a
     mysterious ImportError or a missing binary three attempts later."""
     baked = os.environ.get("AGENT_IMAGE_TASK")
     if baked and baked != task:
-        other = "modelmatch-agent-security" if task == "security" else "modelmatch-agent"
+        other = "driftplain-agent-security" if task == "security" else "driftplain-agent"
         raise AgentConfigError(
             f"this image runs the {baked!r} task only; the project needs {task!r} — "
             f"use the {other} image"
