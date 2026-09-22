@@ -451,7 +451,7 @@ def run_security(config: AgentConfig, model: str) -> tuple[AgentRunResult, Secur
     if shutil.which(config.opencode_bin) is None:
         raise AgentConfigError(
             f"OpenCode runtime {config.opencode_bin!r} not found — the security task needs "
-            "the modelmatch-agent-security image"
+            "the driftplain-agent-security image"
         )
     system_prompt = load_system_prompt(config.prompt_file)
     repo_files = require_workspace(config.workspace)

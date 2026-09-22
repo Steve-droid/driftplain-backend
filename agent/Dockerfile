@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
 #
-# modelmatch-agent — the REVIEW task image (one LLM call over the PR diff, BYOK).
+# driftplain-agent — the REVIEW task image (one LLM call over the PR diff, BYOK).
 # The security task ships as its own image: agent/Dockerfile.security.
 #
 # Build from the REPO ROOT as context (Jenkins agents are amd64; the M4 laptop is arm64):
-#     docker buildx build --platform linux/amd64 -f agent/Dockerfile -t modelmatch-agent .
+#     docker buildx build --platform linux/amd64 -f agent/Dockerfile -t driftplain-agent .
 # Run on a diff (stdin), BYOK via env:
-#     git diff origin/main... | docker run -i --rm -e LLM_CLIENT=fake modelmatch-agent
+#     git diff origin/main... | docker run -i --rm -e LLM_CLIENT=fake driftplain-agent
 #
 # Size discipline (measured 2026-09-08; the 1.0.12 image was 291 MB on the same base):
 #   * the venv holds ONLY the agent's dependency closure — pydantic(+email) /

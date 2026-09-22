@@ -99,11 +99,12 @@ GitHub Actions publishes Linux amd64 images to public GHCR:
 
 | Tag | Images | Workflow |
 |---|---|---|
-| `vX.Y.Z` | `modelmatch-backend` | [Backend release](.github/workflows/release-image.yml) |
-| `agent-vX.Y.Z` | `modelmatch-agent`, `modelmatch-agent-security` | [Agent release](.github/workflows/release-agent-images.yml) |
+| `vX.Y.Z` | `driftplain-backend` | [Backend release](.github/workflows/release-image.yml) |
+| `agent-vX.Y.Z` | `driftplain-agent`, `driftplain-agent-security` | [Agent release](.github/workflows/release-agent-images.yml) |
 
-All images use the `ghcr.io/steve-droid/` prefix. The `modelmatch` names remain from the
-project's original name. Publishing an image does not deploy it. Deployment requires an
+All images use the `ghcr.io/steve-droid/` prefix. New releases use `driftplain-*` package names. Existing
+`modelmatch-*` images remain available, and version numbers continue from those packages.
+See the [image naming policy](https://github.com/Steve-droid/driftplain/blob/main/IMAGE-NAMING.md). Publishing an image does not deploy it. Deployment requires an
 image digest update in [driftplain-gitops](https://github.com/Steve-droid/driftplain-gitops).
 
 [migrations/](migrations/) contains the schema history, [tests/](tests/) contains the API and

@@ -119,16 +119,16 @@ def test_image_task_guard_rejects_the_other_task(run_agent, workspace, fake_open
                      "AGENT_MODEL": "deepseek/deepseek-v4-flash", "AGENT_WORKSPACE": str(workspace),
                      **fake_opencode})
     assert run.returncode == 4
-    assert "modelmatch-agent-security" in run.error["detail"]
+    assert "driftplain-agent-security" in run.error["detail"]
     run = run_agent({"AGENT_IMAGE_TASK": "security", "MODELMATCH_TASK": "review", "LLM_CLIENT": "fake"},
                     stdin=DIFF)
-    assert run.returncode == 4 and "modelmatch-agent image" in run.error["detail"]
+    assert run.returncode == 4 and "driftplain-agent image" in run.error["detail"]
 
 
 def test_missing_opencode_binary_is_a_config_error(run_agent, workspace):
     run = run_agent({"MODELMATCH_TASK": "security", "AGENT_MODEL": "deepseek/deepseek-v4-flash",
                      "AGENT_WORKSPACE": str(workspace), "AGENT_OPENCODE_BIN": "/nonexistent/opencode"})
-    assert run.returncode == 4 and "modelmatch-agent-security" in run.error["detail"]
+    assert run.returncode == 4 and "driftplain-agent-security" in run.error["detail"]
 
 
 def test_gemini_key_is_remapped_for_opencode_in_python(run_agent, workspace, fake_opencode, tmp_path):

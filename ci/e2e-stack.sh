@@ -17,8 +17,8 @@
 #
 # Caller provides via env (the pipeline sets these; local defaults are fine):
 #   COMPOSE_PROJECT_NAME   isolates networks/volumes for concurrent builds (default mm-be-ci)
-#   BACKEND_IMAGE          backend image under test          (default modelmatch-backend:latest)
-#   FRONTEND_IMAGE         frontend image pulled from ECR    (default modelmatch-frontend:latest)
+#   BACKEND_IMAGE          backend image under test          (default driftplain-backend:latest)
+#   FRONTEND_IMAGE         frontend image pulled from ECR    (default driftplain-frontend:latest)
 #   JWT_SECRET             REQUIRED for up/up-db (compose interpolates ${JWT_SECRET:?})
 #   BACKEND_PORT           host port to poll for /healthz    (default 8000)
 #   POSTGRES_PORT          host port Postgres binds          (default 5432)
