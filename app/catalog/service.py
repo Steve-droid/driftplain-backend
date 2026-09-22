@@ -11,12 +11,23 @@ The LLM never runs here: this is plain SQL. The LLM only *fills* the catalog
 
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
+from hashlib import md5
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.models import Benchmark, BenchmarkResult, Harness, Model
+from app.models import (
+    Benchmark,
+    BenchmarkResult,
+    CatalogBenchmarkFamily,
+    CatalogMetricDefinition,
+    CatalogModel,
+    CatalogObservation,
+    CatalogObservationMetric,
+    Harness,
+    Model,
+)
 from app.schemas.catalog import CatalogRowIn, CatalogRowOut
 
 
@@ -206,6 +217,8 @@ def upsert_catalog_row(
         set_=set_cols,
     ).returning(BenchmarkResult.id)
     result_id = db.execute(stmt).scalar_one()
+    stored = db.scalar(select(BenchmarkResult).where(BenchmarkResult.id == result_id))
+    _mirror_legacy_observation(db, stored, model, benchmark)
     db.commit()
 
     return CatalogRowOut(
@@ -221,6 +234,134 @@ def upsert_catalog_row(
         benchmark_as_of=benchmark.as_of,
         benchmark_notes=benchmark.notes,
         **mutable,
+    )
+
+
+def _legacy_fingerprint(*values: object | None) -> str:
+    """Match PostgreSQL concat_ws + md5 used by the populated-data backfill.
+
+    This is an idempotency fingerprint for a compatibility row, never a claim that
+    the row is an immutable upstream source snapshot.
+    """
+    joined = "|".join(str(value) for value in values if value is not None)
+    return md5(joined.encode(), usedforsecurity=False).hexdigest()
+
+
+def _mirror_legacy_observation(
+    db: Session,
+    result: BenchmarkResult,
+    model: Model,
+    benchmark: Benchmark,
+) -> None:
+    """Append the legacy mutable row to B2 history in the same transaction.
+
+    Repeating identical content is a no-op; changing a score or any preserved
+    evidence field creates a new immutable observation.
+    """
+    catalog_model = db.scalar(
+        select(CatalogModel).where(CatalogModel.legacy_model_id == model.id)
+    )
+    if catalog_model is None:
+        catalog_model = CatalogModel(
+            slug=f"legacy-model-{model.id}",
+            name=model.name,
+            organization=model.vendor,
+            legacy_model_id=model.id,
+        )
+        db.add(catalog_model)
+        db.flush()
+
+    family = db.scalar(
+        select(CatalogBenchmarkFamily).where(
+            CatalogBenchmarkFamily.legacy_benchmark_id == benchmark.id
+        )
+    )
+    if family is None:
+        family = CatalogBenchmarkFamily(
+            slug=f"legacy-benchmark-{benchmark.id}",
+            name=benchmark.name,
+            description=benchmark.notes,
+            legacy_benchmark_id=benchmark.id,
+        )
+        db.add(family)
+        db.flush()
+    elif benchmark.notes is not None:
+        family.description = benchmark.notes
+
+    metric_key = result.metric or "legacy-score"
+    metric = db.scalar(
+        select(CatalogMetricDefinition).where(
+            CatalogMetricDefinition.benchmark_family_id == family.id,
+            CatalogMetricDefinition.benchmark_version_id.is_(None),
+            CatalogMetricDefinition.key == metric_key,
+        )
+    )
+    if metric is None:
+        metric = CatalogMetricDefinition(
+            benchmark_family_id=family.id,
+            benchmark_version_id=None,
+            key=metric_key,
+            name=result.metric or "Legacy score",
+        )
+        db.add(metric)
+        db.flush()
+
+    configuration_fingerprint = _legacy_fingerprint(
+        result.harness_id, result.task_type, result.context_window
+    )
+    record_fingerprint = _legacy_fingerprint(
+        result.id,
+        result.score,
+        result.metric,
+        result.cost_per_mtok,
+        result.context_window,
+        result.source,
+        result.source_document_id,
+        result.measured_at,
+    )
+    locator = f"legacy:benchmark_result:{result.id}"
+    existing = db.scalar(
+        select(CatalogObservation.id).where(
+            CatalogObservation.source_snapshot_id.is_(None),
+            CatalogObservation.source_record_locator == locator,
+            CatalogObservation.configuration_fingerprint == configuration_fingerprint,
+            CatalogObservation.record_fingerprint == record_fingerprint,
+        )
+    )
+    if existing is not None:
+        return
+
+    observation = CatalogObservation(
+        benchmark_family_id=family.id,
+        source_record_locator=locator,
+        configuration_fingerprint=configuration_fingerprint,
+        record_fingerprint=record_fingerprint,
+        source_model_label=model.name,
+        catalog_model_id=catalog_model.id,
+        origin="legacy_backfill",
+        provenance_status="incomplete",
+        source_url=result.source,
+        task_type=result.task_type,
+        context_window=result.context_window,
+        reported_cost_per_mtok=result.cost_per_mtok,
+        observed_at=result.measured_at,
+        notes=benchmark.notes,
+        legacy_benchmark_result_id=result.id,
+        legacy_source_document_id=result.source_document_id,
+        legacy_harness_id=result.harness_id,
+    )
+    db.add(observation)
+    db.flush()
+    db.add(
+        CatalogObservationMetric(
+            observation_id=observation.id,
+            metric_definition_id=metric.id,
+            value=result.score,
+            reported_value=str(result.score) if result.score is not None else None,
+            missing_reason=(
+                "not reported in legacy row" if result.score is None else None
+            ),
+        )
     )
 
 

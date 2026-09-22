@@ -46,8 +46,21 @@ EXPECTED_TABLES = {
     "chat_message",  # grounded chat #4
     "retrieval_trace",  # grounded chat #4
     "llm_call",
-    "proactive_alert",
     "llm_usage",
+    "catalog_benchmark_family",
+    "catalog_benchmark_version",
+    "catalog_protocol",
+    "catalog_evaluator",
+    "catalog_source",
+    "catalog_source_snapshot",
+    "catalog_model",
+    "catalog_provider",
+    "catalog_provider_deployment",
+    "catalog_model_alias",
+    "catalog_observation",
+    "catalog_metric_definition",
+    "catalog_observation_metric",
+    "catalog_task_benchmark",
 }
 
 
@@ -199,6 +212,100 @@ def test_downgrade_reverses_tables_and_enum_types(migration_db):
 
         leftover_enums = _enum_type_names(engine)
         assert not leftover_enums, f"downgrade left enum types: {sorted(leftover_enums)}"
+        with engine.connect() as conn:
+            assert conn.scalar(
+                text("SELECT count(*) FROM pg_extension WHERE extname = 'pg_trgm'")
+            ) == 0
+    finally:
+        engine.dispose()
+
+
+def test_b2_populated_upgrade_backfills_unknown_provenance_and_preserves_legacy_on_downgrade(
+    migration_db,
+):
+    """B2 keeps every legacy row while refusing to invent missing provenance."""
+    from alembic import command
+
+    cfg, test_url = migration_db
+    command.upgrade(cfg, "a4b5c6d7e8f9")
+
+    engine = create_engine(test_url)
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("INSERT INTO model (id, name, vendor) VALUES (901, 'Legacy M', 'Maker')"))
+            conn.execute(text("INSERT INTO harness (id, name, vendor) VALUES (902, 'Old Runner', 'Lab')"))
+            conn.execute(text(
+                "INSERT INTO benchmark (id, name, task_type, as_of, notes) "
+                "VALUES (903, 'Legacy Bench', 'ci_review', DATE '2026-01-02', 'Known note')"
+            ))
+            conn.execute(text(
+                "INSERT INTO source_document "
+                "(id, kind, uri, s3_key, content_hash, fetched_at, status) VALUES "
+                "(904, 'leaderboard', 'https://example.test/report', 'legacy/key', "
+                "'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', "
+                "TIMESTAMPTZ '2026-01-03 00:00:00+00', 'ingested')"
+            ))
+            conn.execute(text(
+                "INSERT INTO benchmark_result "
+                "(id, model_id, harness_id, benchmark_id, task_type, score, metric, "
+                " cost_per_mtok, context_window, source, source_document_id, measured_at) VALUES "
+                "(905, 901, 902, 903, 'ci_review', 71.25, 'accuracy', 2.5, 128000, "
+                " 'https://example.test/report', 904, DATE '2026-01-02')"
+            ))
+
+        command.upgrade(cfg, "head")
+
+        with engine.connect() as conn:
+            row = conn.execute(text(
+                "SELECT o.origin, o.provenance_status, o.benchmark_version_id, "
+                "       o.protocol_id, o.evaluator_id, o.source_snapshot_id, "
+                "       o.source_model_label, o.legacy_benchmark_result_id, "
+                "       o.legacy_source_document_id, o.legacy_harness_id, om.value "
+                "FROM catalog_observation o "
+                "JOIN catalog_observation_metric om ON om.observation_id = o.id "
+                "WHERE o.legacy_benchmark_result_id = 905"
+            )).one()
+            assert row == (
+                "legacy_backfill", "incomplete", None, None, None, None,
+                "Legacy M", 905, 904, 902, 71.25,
+            )
+            assert conn.scalar(text("SELECT count(*) FROM model WHERE id = 901")) == 1
+            assert conn.scalar(text("SELECT count(*) FROM benchmark_result WHERE id = 905")) == 1
+            assert "proactive_alert" not in inspect(engine).get_table_names()
+
+        command.downgrade(cfg, "a4b5c6d7e8f9")
+
+        with engine.connect() as conn:
+            assert conn.scalar(text("SELECT count(*) FROM model WHERE id = 901")) == 1
+            assert conn.scalar(text("SELECT count(*) FROM benchmark_result WHERE id = 905")) == 1
+            assert "catalog_observation" not in inspect(engine).get_table_names()
+            assert "proactive_alert" in inspect(engine).get_table_names()
+    finally:
+        engine.dispose()
+
+
+def test_b2_upgrade_refuses_to_drop_a_populated_proactive_alert(migration_db):
+    """The unused table is removable only after its real data is proved empty."""
+    from alembic import command
+
+    cfg, test_url = migration_db
+    command.upgrade(cfg, "a4b5c6d7e8f9")
+    engine = create_engine(test_url)
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("INSERT INTO \"user\" (id, email, password_hash) VALUES (1, 'u@x', 'h')"))
+            conn.execute(text("INSERT INTO project (id, user_id, name) VALUES (1, 1, 'p')"))
+            conn.execute(text(
+                "INSERT INTO proactive_alert (id, project_id, kind, status) "
+                "VALUES (1, 1, 'upgrade', 'open')"
+            ))
+
+        with pytest.raises(RuntimeError, match="proactive_alert is not empty"):
+            command.upgrade(cfg, "head")
+
+        with engine.connect() as conn:
+            assert conn.scalar(text("SELECT count(*) FROM proactive_alert")) == 1
+            assert "catalog_observation" not in inspect(engine).get_table_names()
     finally:
         engine.dispose()
 
