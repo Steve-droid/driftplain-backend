@@ -1,127 +1,111 @@
 # Driftplain backend
 
-[driftplain.dev](https://driftplain.dev) · [Frontend](https://github.com/Steve-droid/driftplain-frontend) · **Backend** · [Infra](https://github.com/Steve-droid/driftplain-infra) · [GitOps](https://github.com/Steve-droid/driftplain-gitops)
+[Project overview](https://github.com/Steve-droid/driftplain) · [Open the app](https://driftplain.dev) · [Frontend](https://github.com/Steve-droid/driftplain-frontend) · [Infrastructure](https://github.com/Steve-droid/driftplain-infra) · [GitOps](https://github.com/Steve-droid/driftplain-gitops)
 
-Driftplain picks a cheaper LLM for code review from benchmark data and runs it in the user's CI
-on the user's own API key. There are two agents. The review agent makes one API call with the PR
-diff and the user's review preferences. The security agent runs an agentic loop with OpenCode
-over the checkout and reports vulnerabilities. The dashboard shows the money saved while review
-quality holds.
+This repo contains Driftplain's API and two CI agents. The API stores projects, model
+benchmarks, review findings and usage. The agents run in the user's Jenkins pipeline with
+their own model credentials and send results back to the API.
 
-This repo is the FastAPI backend and the source of the two agent images.
+The backend uses Python 3.12, FastAPI, SQLAlchemy and PostgreSQL 16. Alembic manages database
+changes, and `uv` manages Python dependencies.
 
-## What it does
+## Main components
 
-**Recommender.** The user describes a task and a budget. The backend filters the benchmark
-catalog and ranks candidates with `rank_score = w_q * quality + w_c * (1 - cost)`. It returns a
-pick, a baseline and a shortlist. No LLM is involved in ranking. Only models the agent can run
-are ranked.
+| Component | What it does | Code |
+|---|---|---|
+| Catalog | Stores models, providers, benchmark results and their sources. Provides read-only search and detail APIs at `/catalog/v1`. | [app/catalog](app/catalog/), [catalog routes](app/api/catalog.py) |
+| Recommendations | Ranks models using benchmark scores and token prices. This is a calculation, with no model call. | [app/recommend](app/recommend/) |
+| Projects and CI setup | Saves the selected model and review preferences, issues a project CI token and generates a Jenkins stage. | [app/projects](app/projects/), [app/ci](app/ci/) |
+| Runs and feedback | Accepts findings and token counts at `POST /ci-runs`, records feedback and calculates costs. | [app/ci](app/ci/), [app/quality](app/quality/), [app/savings](app/savings/) |
+| Authentication | Supports password login and Google sign-in. Users can access only their own projects and runs. | [app/auth](app/auth/) |
+| Ingestion and chat | Imports benchmark data and answers questions about project usage. Both support fake model clients for development. | [app/ingest](app/ingest/), [app/chat](app/chat/), [app/llm](app/llm/) |
 
-**CI agent (`agent/`).** Two images: one reviews a PR diff, the other runs an OpenCode security
-scan. Both post findings and token counts to `POST /ci-runs`. The user supplies the key
-(Anthropic, Gemini or Bedrock; OpenAI through OpenCode for security only). The pass/fail
-decision stays in the user's CI. The agent never edits the repo.
+The current recommendation flow combines benchmark scores and price into a weighted ranking.
+Its cost comparison prices one run's token usage at both the selected model's rates and a
+baseline model's rates. The baseline is not run, so the difference is an estimate rather
+than measured savings. Feedback controls which runs count toward the dashboard total.
 
-**Savings.** Per run, `actual = tokens * selected_price` and `baseline = tokens * baseline_price`.
-The baseline is priced, never executed. Savings count only while the acceptance rate is above
-`QUALITY_THRESHOLD`. Run ingestion is deterministic and costs no tokens.
+The public catalog API is available in this source tree. The benchmark browsing UI is still
+in development. The hosted deployment uses an earlier backend image and has its chat assistant
+disabled; see [GitOps](https://github.com/Steve-droid/driftplain-gitops) for deployed image pins.
 
-**Catalog ingestion and chat.** These are the two in-cluster LLM uses (Bedrock Nova on AWS). On the
-home server both use the fake client: the chat replies that the assistant is offline, and the catalog is
-the seeded snapshot.
+## CI agents
 
-**Auth.** Password login (argon2 + JWT) and Google sign-in (ID token with a server nonce, no
-Drive or Gmail scopes). Each project has its own CI token for run ingest. Registration is capped
-by `MAX_REGISTERED_USERS`. New accounts get two example projects
-([docs/example-projects.md](docs/example-projects.md), [docs/public-access.md](docs/public-access.md)).
+| Agent | Input and execution | Default failure rule |
+|---|---|---|
+| Code review | Makes one model call with a pull-request diff and review preferences. | A high or critical finding fails the stage. |
+| Security analysis | Uses OpenCode to inspect a read-only checkout over multiple steps. | A critical finding fails the stage. |
 
-Two rules hold everywhere. The in-cluster LLM is Bedrock Nova over IRSA only. The agent runs on
-the user's key with any provider.
+Both agents enforce token limits and report findings and usage. They do not edit the checkout.
+Model credentials stay in Jenkins, and the API receives results through a separate project CI
+token. The review agent supports Anthropic, Gemini and Bedrock; the security agent also supports
+DeepSeek and OpenAI through OpenCode.
 
-## Run it
+The [agent guide](agent/README.md) covers container builds, configuration, output and exit codes.
+The two Dockerfiles live in [agent/](agent/).
+
+## Run locally
+
+Install Python 3.12 or newer, `uv` and Docker. Copy the environment template, then replace
+the `JWT_SECRET` placeholder in `.env` with a random signing key of at least 32 characters.
 
 ```bash
-cp .env.example .env                    # set a real JWT_SECRET; the placeholder is rejected
-docker compose up -d db                 # PostgreSQL 16 on :5432
-uv sync
-uv run alembic upgrade head             # migrations never run on startup
-uv run uvicorn app.main:app --reload    # :8000 with /docs, /healthz, /readyz, /metrics
+cp .env.example .env
 ```
 
-All configuration comes from the environment (`pydantic-settings`, template in
-[`.env.example`](.env.example)). The main settings:
+After editing `.env`, start the database, install dependencies and prepare the local catalog:
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `DATABASE_URL` | compose Postgres | connection string |
-| `JWT_SECRET` | placeholder (rejected) | JWT signing key |
-| `LLM_CLIENT`, `BLOB_STORE` | `fake` | `bedrock` / `s3` on AWS, `fake` on the home server and in tests |
-| `BEDROCK_MODEL_ID`, `AWS_REGION`, `S3_BUCKET` | Nova Lite, `ap-south-1`, ingestion bucket | the AWS side |
-| `LLM_HOURLY_TOKEN_CAP` | `200000` | hard cap on in-cluster Nova usage; requests above it get 429 |
-| `BASELINE_MODEL_IDS`, `QUALITY_THRESHOLD` | Sonnet/Opus per task, `0.8` | savings baseline and quality gate |
-| `AGENT_IMAGE`, `AGENT_SECURITY_IMAGE`, `CI_AGENT_TOKEN_CEILING` | `modelmatch-agent:latest`, `…-security:latest`, `20000` | images in the generated CI snippet and the per-run token ceiling |
-| `PUBLIC_BASE_URL`, `CORS_ALLOW_ORIGINS`, `GOOGLE_CLIENT_ID` | localhost, localhost, empty | where CI posts back, allowed origins, Google client (empty disables it) |
-| `MAX_REGISTERED_USERS`, `SEED_NEW_USER_EXAMPLES` | `700`, `true` | public demo limits |
+```bash
+docker compose up -d db
+uv sync
+uv run alembic upgrade head
+uv run python -m app.catalog.seed
+uv run uvicorn app.main:app --reload
+```
 
-Credentials are never literals. In the cluster they arrive as Kubernetes Secrets. The
-`llm_call` log line records model, latency, tokens and context size, never the diff.
+Open [API docs](http://localhost:8000/docs) to try the endpoints. `/healthz` checks the process,
+`/readyz` checks the database connection, and `/metrics` exposes Prometheus metrics.
 
-## The catalog
+Local defaults use fake model and blob clients, so setup needs no model API key. The catalog
+seed loads checked-in data. Migrations run explicitly, not when the API starts.
 
-Rows are only comparable when they share a benchmark and a metric, so each task type maps to
-exactly one pair. The mapping is enforced on upsert and at rank time. Every score cites a dated
-source, and a test rejects uncited figures.
+### Configuration
 
-| Task type | Benchmark | Metric | Baseline |
-|---|---|---|---|
-| `ci_review` | CodeReviewBench (June 2026) | `review_score_percent` | Claude Sonnet 4.5 |
-| `security_analysis` | RealVuln v2.1 | `f3_score` | Claude Opus 5 |
-| `agentic_coding` | SWE-bench Verified | `pass@1_percent` | data only |
+[.env.example](.env.example) lists the settings. The main ones are:
 
-The security rows come from RealVuln's published JSON and YAML in [`data/catalog/`](data/catalog),
-loaded by `uv run python -m app.catalog.ingest_realvuln`. The loader is idempotent by content
-hash and skips unpriced scanners.
+| Setting | Purpose |
+|---|---|
+| `DATABASE_URL`, `JWT_SECRET` | Database connection and login token signing key. |
+| `CORS_ALLOW_ORIGINS`, `PUBLIC_BASE_URL` | Allowed browser origins and the API address used by Jenkins. |
+| `GOOGLE_CLIENT_ID` | Enables Google sign-in when configured. |
+| `AGENT_IMAGE`, `AGENT_SECURITY_IMAGE` | Agent images used in generated Jenkins stages. |
+| `LLM_CLIENT`, `BLOB_STORE` | Select fake clients locally or the supported AWS integrations. |
+| `LLM_HOURLY_TOKEN_CAP`, `CI_AGENT_TOKEN_CEILING` | Limit hosted model usage and individual CI runs. |
 
 ## Tests
 
-All LLM calls go through one `LLMClient` with a fake implementation and recorded fixtures, so the
-suite runs offline. Postgres must be running.
-
 ```bash
-uv run pytest                        # everything
-uv run pytest -m "not integration"   # no database
-uv run pytest -m integration         # database-backed tests
-uv run pytest tests/agent            # the CI agent, offline
-scripts/agent-live-smoke.sh          # manual: the agent against a real model on the diffs in docs/tests/
+uv run pytest -m "not integration"  # unit tests, no database
+uv run pytest -m integration        # database-backed tests
+uv run pytest tests/agent           # agent tests with fake model responses
 ```
 
-## Releasing
+Database tests need the local Postgres container. They create a separate test database and
+apply migrations. Tests use fake model responses and fixtures without paid API calls.
 
-Merge, then push an annotated tag. GitHub Actions builds `linux/amd64` and pushes to public GHCR.
-A published tag is never overwritten. The job summary prints the digest to pin in the gitops
-home profile.
+## Releases and deployment
 
-| Tag | Workflow | Image |
+GitHub Actions publishes Linux amd64 images to public GHCR:
+
+| Tag | Images | Workflow |
 |---|---|---|
-| `vX.Y.Z` | [`release-image.yml`](.github/workflows/release-image.yml) | `ghcr.io/steve-droid/modelmatch-backend:X.Y.Z` (images keep the project's old `modelmatch` name) |
-| `agent-vX.Y.Z` | [`release-agent-images.yml`](.github/workflows/release-agent-images.yml) | `ghcr.io/steve-droid/modelmatch-agent:X.Y.Z` and `modelmatch-agent-security:X.Y.Z` |
+| `vX.Y.Z` | `modelmatch-backend` | [Backend release](.github/workflows/release-image.yml) |
+| `agent-vX.Y.Z` | `modelmatch-agent`, `modelmatch-agent-security` | [Agent release](.github/workflows/release-agent-images.yml) |
 
-Deployment is a separate digest bump in
-[driftplain-gitops](https://github.com/Steve-droid/driftplain-gitops). The `Jenkinsfile` and
-`Jenkinsfile.agent` pipelines ran on the AWS Jenkins controller until September 21, 2026 and are
-kept for reference.
+All images use the `ghcr.io/steve-droid/` prefix. The `modelmatch` names remain from the
+project's original name. Publishing an image does not deploy it. Deployment requires an
+image digest update in [driftplain-gitops](https://github.com/Steve-droid/driftplain-gitops).
 
-## Layout
-
-```
-app/          api, auth, models, schemas, recommend, catalog, ingest, chat, projects, ci, savings,
-              quality, demo, observability, llm (LLMClient and adapters), llm_budget, blob_store, config
-agent/        the review image (Dockerfile) and the OpenCode security image (Dockerfile.security)
-migrations/   Alembic, run as a Job in the cluster
-tests/        pytest with the fake LLM; tests/agent covers the agent
-ci/           compose stack and smoke scripts used by the old pipelines
-data/         checked-in catalog sources
-docs/         example-projects.md, public-access.md, three draw.io diagrams, tests/ (smoke diffs)
-```
-
-Steve Levit, stevelevit230@gmail.com
+[migrations/](migrations/) contains the schema history, [tests/](tests/) contains the API and
+agent tests, and [data/](data/) contains benchmark source files. The `Jenkinsfile` and
+`Jenkinsfile.agent` retain the build and test pipelines used by the former AWS Jenkins controller.
