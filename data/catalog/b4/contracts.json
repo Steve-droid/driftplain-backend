@@ -1,0 +1,85 @@
+{
+  "deepswe-1-1": {
+    "mode": "automatic_structured",
+    "url": "https://deepswe.datacurve.ai/artifacts/v1.1/leaderboard-live.json",
+    "max_bytes": 1000000,
+    "scope": [
+      "mini_swe_agent_gpt_6_astra_xhigh",
+      "mini_swe_agent_claude_fable_5_xhigh",
+      "mini_swe_agent_deepseek_v4_pro_max"
+    ],
+    "fixture_sha256": "a7c15d66288fd249c020b9931c017b92d1a3b90e480b3ff34974b752bd030019",
+    "configurations": {
+      "mini_swe_agent_gpt_6_astra_xhigh": {
+        "model": "gpt-6-astra",
+        "effort": "xhigh"
+      },
+      "mini_swe_agent_claude_fable_5_xhigh": {
+        "model": "claude-fable-5",
+        "effort": "xhigh"
+      },
+      "mini_swe_agent_deepseek_v4_pro_max": {
+        "model": "deepseek-v4-pro",
+        "effort": "max"
+      }
+    }
+  },
+  "codereviewbench": {
+    "mode": "automatic_structured",
+    "url": "https://raw.githubusercontent.com/kodustech/codereviewbench/531297bf50e5f065e3888d7e07b55dcacbf8df64/src/lib/data/leaderboard.json",
+    "max_bytes": 1000000,
+    "sha256": "a6382ebc79aec596ff23fb2cd86078da0e50baff14d160c8abb9763acbb86442"
+  },
+  "realvuln-3-1-0": {
+    "mode": "automatic_structured",
+    "url": "https://raw.githubusercontent.com/kolega-ai/Real-Vuln-Benchmark/7a710251f55c17d32d3adcb13d37468e2e3b9e4a/benchmark-manifest.json",
+    "max_bytes": 2000000,
+    "sha256": "fd16106dec8065b3d6f7fe7a97226b80a6ec11522a666d980ae423ea30e26556"
+  },
+  "testgeneval": {
+    "mode": "automatic_structured",
+    "url": "https://testgeneval.github.io/data.csv",
+    "max_bytes": 100000,
+    "media_types": [
+      "text/csv",
+      "text/plain",
+      "application/octet-stream"
+    ],
+    "fixture_sha256": "132b9f496b0677acd894b541af60a1a074ec1466c29810039320ed41c93dee5d"
+  },
+  "livebench-2026-06-25": {
+    "mode": "automatic_bundle",
+    "max_bytes": 1000000,
+    "revision": "19e766a5de4de07d672ed5bf9f0a69ceed1d39bf",
+    "files": [
+      {
+        "path": "public/table_2026_06_25.csv",
+        "url": "https://raw.githubusercontent.com/LiveBench/livebench.github.io/19e766a5de4de07d672ed5bf9f0a69ceed1d39bf/public/table_2026_06_25.csv",
+        "sha256": "f0330164423abf9803631fc5b2f2b5427f17c0161c12e15021bb0f9781d2afa8",
+        "byte_count": 4902
+      },
+      {
+        "path": "public/categories_2026_06_25.json",
+        "url": "https://raw.githubusercontent.com/LiveBench/livebench.github.io/19e766a5de4de07d672ed5bf9f0a69ceed1d39bf/public/categories_2026_06_25.json",
+        "sha256": "dad300ad18655b69db720e1b88fc5a5eac06c5b2f0e52c2bf50f10ff057674f3",
+        "byte_count": 725
+      }
+    ]
+  },
+  "livecodebench-v5": {
+    "mode": "reviewed_manifest",
+    "max_bytes": 3000000
+  },
+  "swt-bench": {
+    "mode": "reviewed_manifest",
+    "max_bytes": 250000
+  },
+  "logdx-ci": {
+    "mode": "reviewed_manifest",
+    "max_bytes": 3000000
+  },
+  "ci-repair-bench": {
+    "mode": "reviewed_manifest",
+    "max_bytes": 1000000
+  }
+}

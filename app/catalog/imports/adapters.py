@@ -1,8 +1,8 @@
-"""Ten family adapters share a candidate contract, never perform I/O or write rows."""
+"""Nineteen family adapters share a candidate contract, never perform I/O or write rows."""
 
-from datetime import date
 import hashlib
 import re
+from datetime import date
 
 from app.catalog.imports.contracts import (
     Batch,
@@ -13,7 +13,12 @@ from app.catalog.imports.contracts import (
     decode,
     fingerprint,
 )
-from app.catalog.imports.registry import B3_IDS, REGISTRY_HASH, get_source
+from app.catalog.imports.registry import (
+    B4_IDS,
+    REGISTRY_HASH,
+    get_source,
+    source_ids,
+)
 
 # Keys are semantic boundaries, not merely display labels. Missing values fail closed;
 # genuinely unreported upstream settings require an explicit reason and isolated group.
@@ -339,10 +344,14 @@ def parse_candidates(
     source_id: str, raw: bytes, source: dict, *, source_registry_hash: str
 ) -> Batch:
     """Pure adapter entry point; all source bytes and frozen metadata are supplied."""
-    if source_id not in B3_IDS or source["id"] != source_id:
+    if source_id not in source_ids() or source["id"] != source_id:
         raise ValueError("unsupported or mismatched source")
     if not isinstance(raw, bytes) or not 0 < len(raw) <= source["maxPayloadBytes"]:
         raise ValueError("source payload outside allowed bounds")
+    if source_id in B4_IDS:
+        from app.catalog.imports.b4 import parse_b4
+
+        return parse_b4(source_id, raw, source, source_registry_hash)
     if source_id == "swe-bench-verified":
         batch = _swe(raw, source)
         # Local file imports must enforce the same immutable provenance as HTTPS fetches.

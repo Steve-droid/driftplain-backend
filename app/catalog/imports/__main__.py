@@ -1,10 +1,11 @@
 """Explicit operator command; validation is the default, no scheduler or seed hook."""
 
 import argparse
-from dataclasses import asdict
-from datetime import datetime, timezone
 import json
+from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
+
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.catalog.imports.adapters import parse
@@ -18,7 +19,7 @@ def main(argv=None):
     inputs.add_argument(
         "--manifest",
         type=Path,
-        help="Trusted, explicitly reviewed JSON manifest or pinned structured JSON",
+        help="Reviewed manifest, structured JSON/CSV, or complete pinned artifact bundle",
     )
     inputs.add_argument(
         "--fetch", action="store_true", help="Fetch the pinned structured source"
@@ -41,14 +42,15 @@ def main(argv=None):
                 parser.error("retention reporting cannot promote or delete")
             from sqlalchemy import create_engine, select
             from sqlalchemy.orm import Session
+
+            from app.catalog.imports.retention import retention_candidates
             from app.config import get_settings
             from app.models import CatalogSource, CatalogSourceSnapshot
-            from app.catalog.imports.retention import retention_candidates
 
             engine = create_engine(get_settings().database_url)
             try:
                 with Session(engine) as db:
-                    ids = retention_candidates(db, now=datetime.now(timezone.utc))
+                    ids = retention_candidates(db, now=datetime.now(UTC))
                     ids = list(
                         db.scalars(
                             select(CatalogSourceSnapshot.id)
@@ -74,18 +76,28 @@ def main(argv=None):
         if args.manifest:
             # Bound reads before parsing, including operator-supplied files.
             with args.manifest.open("rb") as stream:
-                raw = stream.read(spec["maxPayloadBytes"] + 1)
+                raw = stream.read(
+                    spec.get("importContract", {}).get(
+                        "max_bytes", spec["maxPayloadBytes"]
+                    )
+                    + 1
+                )
         elif not args.promote:
             from app.catalog.imports.fetch import fetch
 
-            if spec["importMode"] != "automatic_structured":
-                raise ValueError("reviewed report requires a reviewed manifest")
-            raw = fetch(
-                spec["resultArtifact"],
-                allowed_urls=(spec["resultArtifact"],),
-                max_bytes=spec["maxPayloadBytes"],
-                expected_hash=spec.get("artifactSha256"),
-            ).body
+            if spec.get("importContract"):
+                from app.catalog.imports.acquisition import acquire_source
+
+                raw = acquire_source(spec).body
+            else:
+                if spec["importMode"] != "automatic_structured":
+                    raise ValueError("reviewed report requires a reviewed manifest")
+                raw = fetch(
+                    spec["resultArtifact"],
+                    allowed_urls=(spec["resultArtifact"],),
+                    max_bytes=spec["maxPayloadBytes"],
+                    expected_hash=spec.get("artifactSha256"),
+                ).body
         if not args.promote:
             batch = parse(args.source, raw)
             print(
@@ -100,8 +112,9 @@ def main(argv=None):
             )
             return 0
         from sqlalchemy import create_engine
-        from app.config import get_settings
+
         from app.catalog.imports.pipeline import import_bytes, import_source
+        from app.config import get_settings
 
         engine = create_engine(get_settings().database_url)
         try:

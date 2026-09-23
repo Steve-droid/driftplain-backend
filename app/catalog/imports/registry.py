@@ -30,13 +30,31 @@ def registry_hash():
     return digest
 
 
+B4_IDS = (
+    "deepswe-1-1",
+    "livecodebench-v5",
+    "livebench-2026-06-25",
+    "codereviewbench",
+    "realvuln-3-1-0",
+    "testgeneval",
+    "swt-bench",
+    "logdx-ci",
+    "ci-repair-bench",
+)
+
+
 def source_ids():
-    return B3_IDS
+    return B3_IDS + B4_IDS
 
 
 def get_source(source_id):
-    if source_id not in B3_IDS:
-        raise ValueError("unsupported B3 source")
+    if source_id not in source_ids():
+        raise ValueError("unsupported catalog source")
     registry_hash()
     registry = json.loads((DATA / "registry.json").read_bytes())
-    return copy.deepcopy(next(s for s in registry["sources"] if s["id"] == source_id))
+    source = copy.deepcopy(next(s for s in registry["sources"] if s["id"] == source_id))
+    if source_id in B4_IDS:
+        source["importContract"] = json.loads(
+            (DATA.parent / "b4/contracts.json").read_bytes()
+        )[source_id]
+    return source

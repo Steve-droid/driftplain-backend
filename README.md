@@ -110,3 +110,12 @@ image digest update in [driftplain-gitops](https://github.com/Steve-droid/driftp
 [migrations/](migrations/) contains the schema history, [tests/](tests/) contains the API and
 agent tests, and [data/](data/) contains benchmark source files. The `Jenkinsfile` and
 `Jenkinsfile.agent` retain the build and test pipelines used by the former AWS Jenkins controller.
+
+## Independent benchmark imports
+
+The explicit `python -m app.catalog.imports` command validates or promotes attributed catalog
+inputs independently of CI runtime support. Validation is the default; `--promote` is the
+operator's database-write action. See [B3 familiar sources](data/catalog/b3/README.md) and
+[B4 independent/CI sources](data/catalog/b4/README.md) for the 19-family registry, exact
+versions, supported fetch modes, honest coverage gaps and immutable-history contracts.
+No importer runs on server startup and publication does not seed or deploy the service.

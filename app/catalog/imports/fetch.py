@@ -1,12 +1,12 @@
 """Bounded HTTPS GET only. Pin resolved public IP while retaining TLS hostname checks."""
 
-from dataclasses import dataclass
 import hashlib
 import http.client
 import ipaddress
 import socket
 import ssl
 import time
+from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 
@@ -76,6 +76,7 @@ def fetch(
     allowed_urls,
     max_bytes,
     expected_hash=None,
+    media_types=("application/json", "text/plain"),
     etag=None,
     last_modified=None,
     resolver=_resolve,
@@ -98,7 +99,7 @@ def fetch(
     if not 0 < max_bytes <= 8000000 or not 0 < timeout <= 30 or not 1 <= attempts <= 3:
         raise FetchError("invalid fetch limits")
     headers = {
-        "Accept": "application/json",
+        "Accept": ", ".join(media_types),
         "Accept-Encoding": "identity",
         "User-Agent": "Driftplain-catalog/1",
     }
@@ -132,7 +133,7 @@ def fetch(
                 response.getheader("content-type", "").split(";")[0].strip().lower()
             )
             # GitHub serves raw JSON as text/plain. The adapter still validates its schema.
-            if media_type not in ("application/json", "text/plain"):
+            if media_type not in media_types:
                 raise FetchError("media type rejected")
             if response.getheader("content-encoding", "identity") != "identity":
                 raise FetchError("encoded body rejected")

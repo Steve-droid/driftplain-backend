@@ -15,6 +15,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project --extra bedrock
 COPY app ./app
 COPY data/catalog/b3 ./data/catalog/b3
+COPY data/catalog/b4 ./data/catalog/b4
 RUN uv sync --frozen --no-dev --extra bedrock
 
 # --- runtime: slim, non-root, gunicorn+uvicorn (no --reload) ---

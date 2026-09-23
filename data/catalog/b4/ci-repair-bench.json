@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "source_id": "ci-repair-bench",
+  "registry_hash": "3ada3d03d3bc94518d9369e9279b2ea036ae1db6277ee193d10263e3c76f9495",
+  "review": {
+    "reviewer": "Codex source transcription",
+    "reviewed_at": "2026-09-23",
+    "note": "Deterministic transcription of cited bounded public evidence under authorized B4 delivery; aliases remain unresolved."
+  },
+  "publication_date": null,
+  "coverage_note": "Paper labels are unresolved aliases until a revision and endpoint can be proven. The workflow is supplementary repair evidence and does not create a diagnosis or repair recommendation.",
+  "rows": [
+    {
+      "locator": "0:GPT-5-mini",
+      "model_label": "GPT-5-mini",
+      "version": "arXiv:2604.27148v2, 567 instances / 103 repositories",
+      "protocol": {
+        "paper": "2604.27148v2",
+        "instances": 567,
+        "repositories": 103,
+        "attempts": 1,
+        "success": "full GitHub Actions CI re-execution passes",
+        "runner": "reference repair pipeline",
+        "recommendation_eligible": false
+      },
+      "evaluator": "CI-Repair-Bench authors",
+      "publication_date": "2026-05-04",
+      "citation": {
+        "url": "https://github.com/Steve-droid/driftplain-portfolio/blob/ffd18599d309e61ed5abeb323faf389f5a63e074/fixtures/benchmark-sources/reviewed-task-observations.json",
+        "locator": "sources[2].observations[0]; transcribed paper Table 2; original URL in source_data",
+        "content_hash": "fc3679d2731d37b9351ba4e88aa35bbe25217e974b2b317d9a3e5571ee0dcf88"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 18.9,
+          "denominator": 567,
+          "attempts": 1
+        }
+      ],
+      "source_data": {
+        "modelLabel": "GPT-5-mini",
+        "appliedPatches": 455,
+        "passAt1": 18.9,
+        "upstream_artifact": "https://arxiv.org/html/2604.27148v2#S5.T2"
+      }
+    },
+    {
+      "locator": "1:DeepSeek-Coder",
+      "model_label": "DeepSeek-Coder",
+      "version": "arXiv:2604.27148v2, 567 instances / 103 repositories",
+      "protocol": {
+        "paper": "2604.27148v2",
+        "instances": 567,
+        "repositories": 103,
+        "attempts": 1,
+        "success": "full GitHub Actions CI re-execution passes",
+        "runner": "reference repair pipeline",
+        "recommendation_eligible": false
+      },
+      "evaluator": "CI-Repair-Bench authors",
+      "publication_date": "2026-05-04",
+      "citation": {
+        "url": "https://github.com/Steve-droid/driftplain-portfolio/blob/ffd18599d309e61ed5abeb323faf389f5a63e074/fixtures/benchmark-sources/reviewed-task-observations.json",
+        "locator": "sources[2].observations[1]; transcribed paper Table 2; original URL in source_data",
+        "content_hash": "fc3679d2731d37b9351ba4e88aa35bbe25217e974b2b317d9a3e5571ee0dcf88"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 15.9,
+          "denominator": 567,
+          "attempts": 1
+        }
+      ],
+      "source_data": {
+        "modelLabel": "DeepSeek-Coder",
+        "appliedPatches": 438,
+        "passAt1": 15.9,
+        "upstream_artifact": "https://arxiv.org/html/2604.27148v2#S5.T2"
+      }
+    },
+    {
+      "locator": "2:DeepSeek-Chat",
+      "model_label": "DeepSeek-Chat",
+      "version": "arXiv:2604.27148v2, 567 instances / 103 repositories",
+      "protocol": {
+        "paper": "2604.27148v2",
+        "instances": 567,
+        "repositories": 103,
+        "attempts": 1,
+        "success": "full GitHub Actions CI re-execution passes",
+        "runner": "reference repair pipeline",
+        "recommendation_eligible": false
+      },
+      "evaluator": "CI-Repair-Bench authors",
+      "publication_date": "2026-05-04",
+      "citation": {
+        "url": "https://github.com/Steve-droid/driftplain-portfolio/blob/ffd18599d309e61ed5abeb323faf389f5a63e074/fixtures/benchmark-sources/reviewed-task-observations.json",
+        "locator": "sources[2].observations[2]; transcribed paper Table 2; original URL in source_data",
+        "content_hash": "fc3679d2731d37b9351ba4e88aa35bbe25217e974b2b317d9a3e5571ee0dcf88"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 13.2,
+          "denominator": 567,
+          "attempts": 1
+        }
+      ],
+      "source_data": {
+        "modelLabel": "DeepSeek-Chat",
+        "appliedPatches": 416,
+        "passAt1": 13.2,
+        "upstream_artifact": "https://arxiv.org/html/2604.27148v2#S5.T2"
+      }
+    },
+    {
+      "locator": "3:GPT-4o-mini",
+      "model_label": "GPT-4o-mini",
+      "version": "arXiv:2604.27148v2, 567 instances / 103 repositories",
+      "protocol": {
+        "paper": "2604.27148v2",
+        "instances": 567,
+        "repositories": 103,
+        "attempts": 1,
+        "success": "full GitHub Actions CI re-execution passes",
+        "runner": "reference repair pipeline",
+        "recommendation_eligible": false
+      },
+      "evaluator": "CI-Repair-Bench authors",
+      "publication_date": "2026-05-04",
+      "citation": {
+        "url": "https://github.com/Steve-droid/driftplain-portfolio/blob/ffd18599d309e61ed5abeb323faf389f5a63e074/fixtures/benchmark-sources/reviewed-task-observations.json",
+        "locator": "sources[2].observations[3]; transcribed paper Table 2; original URL in source_data",
+        "content_hash": "fc3679d2731d37b9351ba4e88aa35bbe25217e974b2b317d9a3e5571ee0dcf88"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 7.9,
+          "denominator": 567,
+          "attempts": 1
+        }
+      ],
+      "source_data": {
+        "modelLabel": "GPT-4o-mini",
+        "appliedPatches": 420,
+        "passAt1": 7.9,
+        "upstream_artifact": "https://arxiv.org/html/2604.27148v2#S5.T2"
+      }
+    }
+  ]
+}
