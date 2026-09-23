@@ -144,10 +144,13 @@ def main(argv: list[str] | None = None) -> int:
     _remap_credentials()
     try:
         if config.execution_config:
-            from agent.review_execution import explicit_main
+            from agent.execution import explicit_main
             return explicit_main(config, args.diff)
         config, task, remote = _resolve(config)
         _check_image_task(task)
+        from app.security_contracts import SECURITY_PROFILES
+        if task == "security" and config.model_id.split("/", 1)[-1] in SECURITY_PROFILES:
+            raise AgentConfigError("Security integration pending; requires verified explicit configuration")
         from app.review_contracts import REVIEW_PROFILES
         if task == "review" and config.model_id in REVIEW_PROFILES:
             raise AgentConfigError("Review integration pending; requires verified explicit configuration")

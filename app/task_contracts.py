@@ -12,6 +12,7 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validat
 from pydantic.alias_generators import to_camel
 
 from app.review_contracts import ProviderUsage
+from app.security_contracts import RunnerUsage
 
 TASK_CONTRACT_VERSION = 1
 LegacyTaskType = Literal["ci_review", "security_analysis"]
@@ -274,9 +275,12 @@ class TaskResult(Contract):
     validations: list[ValidationCheck] = Field(default_factory=list, max_length=5)
     # B8 additive evidence; persisted inside the already immutable JSON envelope.
     provider_usage: ProviderUsage | None = None
+    runner_usage: RunnerUsage | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def consistent_result(self):
+        if self.provider_usage and self.runner_usage:
+            raise ValueError("Native and runner usage cannot coexist")
         if self.execution_status != "completed" and not self.execution_reason:
             raise ValueError("Incomplete execution requires an explicit reason")
         _, kinds, _ = profile_for(self.task, self.mode, self.language, self.propose_fix)
@@ -378,6 +382,23 @@ def validate_result_configuration(
             raise ValueError("Completed review requires complete usage")
         if gate == "pass" and max(usage.captured_tokens, usage.reported_total_tokens or 0) > c.resources.max_tokens:
             raise ValueError("Usage exceeding the configured ceiling cannot pass")
+    runner = result.runner_usage
+    if runner:
+        if (result.task, result.mode) != ("security_analysis", "opencode"):
+            raise ValueError("Runner usage requires the security profile")
+        if (runner.provider, runner.profile_version) != (
+            configuration["model"]["provider"], configuration["runtimeVersion"]
+        ):
+            raise ValueError("Runner usage differs from executed provider profile")
+        if result.execution_status == "completed" and not runner.complete:
+            raise ValueError("Completed security requires complete runner events")
+        if gate == "pass" and (
+            max(runner.captured_tokens, runner.reported_total_tokens or 0) > c.resources.max_tokens
+            or runner.completed_steps > c.resources.max_iterations
+            or runner.tool_calls > c.resources.max_iterations
+            or runner.attempts > c.resources.max_attempts
+        ):
+            raise ValueError("Runner usage exceeds configured ceiling")
     if result.patch and any(
         not any(
             f.path == path or f.path.startswith(path + "/") for path in c.write_paths
