@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "source_id": "mrcr-v2",
+  "registry_hash": "3ada3d03d3bc94518d9369e9279b2ea036ae1db6277ee193d10263e3c76f9495",
+  "review": {
+    "reviewer": "Codex source transcription; pending Steve B3 delivery review",
+    "reviewed_at": "2026-09-23",
+    "note": "Bounded source rows inspected against the cited authoritative artifacts; no evaluation or LLM extraction executed."
+  },
+  "publication_date": null,
+  "coverage_note": "Definition only: no pinned comparable multi-model MRCR v2 result table was verified. No synthetic missing model rows or scores are created.",
+  "rows": []
+}

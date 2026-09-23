@@ -117,6 +117,7 @@ def observations(
     protocol_id: int | None = Query(None, alias="protocolId", ge=1),
     evaluator_id: int | None = Query(None, alias="evaluatorId", ge=1),
     snapshot_id: int | None = Query(None, alias="snapshotId", ge=1),
+    q: str | None = Query(None, min_length=1, max_length=200),
     db: Session = Depends(get_db),
 ) -> CatalogObservationPage:
     _reject_unknown(
@@ -131,6 +132,7 @@ def observations(
             "protocolId",
             "evaluatorId",
             "snapshotId",
+            "q",
         },
     )
     return _cursor_call(
@@ -145,6 +147,7 @@ def observations(
         protocol_id=protocol_id,
         evaluator_id=evaluator_id,
         snapshot_id=snapshot_id,
+        q=q,
     )
 
 

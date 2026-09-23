@@ -368,6 +368,7 @@ def list_observations(
     protocol_id: int | None = None,
     evaluator_id: int | None = None,
     snapshot_id: int | None = None,
+    q: str | None = None,
 ) -> CatalogObservationPage:
     parameters = {
         "modelId": model_id,
@@ -378,8 +379,13 @@ def list_observations(
         "evaluatorId": evaluator_id,
         "snapshotId": snapshot_id,
     }
+    normalized = _normalise_query(q)
+    if normalized is not None:
+        parameters["q"] = normalized
     order = "observation-id"
     stmt = select(CatalogObservation)
+    if normalized is not None:
+        stmt = stmt.where(_contains(CatalogObservation.source_model_label, normalized))
     for column, value in (
         (CatalogObservation.catalog_model_id, model_id),
         (CatalogObservation.benchmark_family_id, benchmark_id),

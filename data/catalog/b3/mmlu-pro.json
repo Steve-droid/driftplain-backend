@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "source_id": "mmlu-pro",
+  "registry_hash": "3ada3d03d3bc94518d9369e9279b2ea036ae1db6277ee193d10263e3c76f9495",
+  "review": {
+    "reviewer": "Codex source transcription; pending Steve B3 delivery review",
+    "reviewed_at": "2026-09-23",
+    "note": "Bounded source rows inspected against the cited authoritative artifacts; no evaluation or LLM extraction executed."
+  },
+  "publication_date": null,
+  "coverage_note": "Three exact labels and scores from the pinned mini-leaderboard. Five-shot CoT policy frozen by B1; no alias inference. Result publication dates are not given in the table.",
+  "rows": [
+    {
+      "locator": "Mini-Leaderboard/Claude-3.5-Sonnet",
+      "model_label": "Claude-3.5-Sonnet",
+      "version": "14-domain test set at f418b116db00b065c2aea046518d8fcf74d39872",
+      "protocol": {
+        "shots": 5,
+        "prompt": "MMLU-Pro five-shot CoT; evaluate_from_api.py/single_request at f418b116db00b065c2aea046518d8fcf74d39872"
+      },
+      "evaluator": "MMLU-Pro maintainers",
+      "publication_date": null,
+      "citation": {
+        "url": "https://github.com/TIGER-AI-Lab/MMLU-Pro/blob/f418b116db00b065c2aea046518d8fcf74d39872/README.md#-mini-leaderboard",
+        "locator": "Mini-Leaderboard / Claude-3.5-Sonnet",
+        "content_hash": "dfbab62320e644f3682d4697e206160bbb59baafa324c59a17e4424328e3e5a5"
+      },
+      "metrics": [
+        {
+          "key": "overall_accuracy",
+          "value": 76.12,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ],
+      "source_data": {
+        "prompt_citation": {
+          "url": "https://raw.githubusercontent.com/TIGER-AI-Lab/MMLU-Pro/f418b116db00b065c2aea046518d8fcf74d39872/evaluate_from_api.py",
+          "locator": "single_request; category validation examples",
+          "content_hash": "6e00c0d57ed307b9e707b712ea796fbd2286c6d21889cd63bb58090fa72c5a99"
+        }
+      }
+    },
+    {
+      "locator": "Mini-Leaderboard/GPT-4o",
+      "model_label": "GPT-4o",
+      "version": "14-domain test set at f418b116db00b065c2aea046518d8fcf74d39872",
+      "protocol": {
+        "shots": 5,
+        "prompt": "MMLU-Pro five-shot CoT; evaluate_from_api.py/single_request at f418b116db00b065c2aea046518d8fcf74d39872"
+      },
+      "evaluator": "MMLU-Pro maintainers",
+      "publication_date": null,
+      "citation": {
+        "url": "https://github.com/TIGER-AI-Lab/MMLU-Pro/blob/f418b116db00b065c2aea046518d8fcf74d39872/README.md#-mini-leaderboard",
+        "locator": "Mini-Leaderboard / GPT-4o",
+        "content_hash": "dfbab62320e644f3682d4697e206160bbb59baafa324c59a17e4424328e3e5a5"
+      },
+      "metrics": [
+        {
+          "key": "overall_accuracy",
+          "value": 72.55,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ],
+      "source_data": {
+        "prompt_citation": {
+          "url": "https://raw.githubusercontent.com/TIGER-AI-Lab/MMLU-Pro/f418b116db00b065c2aea046518d8fcf74d39872/evaluate_from_api.py",
+          "locator": "single_request; category validation examples",
+          "content_hash": "6e00c0d57ed307b9e707b712ea796fbd2286c6d21889cd63bb58090fa72c5a99"
+        }
+      }
+    },
+    {
+      "locator": "Mini-Leaderboard/Gemini-1.5-Pro",
+      "model_label": "Gemini-1.5-Pro",
+      "version": "14-domain test set at f418b116db00b065c2aea046518d8fcf74d39872",
+      "protocol": {
+        "shots": 5,
+        "prompt": "MMLU-Pro five-shot CoT; evaluate_from_api.py/single_request at f418b116db00b065c2aea046518d8fcf74d39872"
+      },
+      "evaluator": "MMLU-Pro maintainers",
+      "publication_date": null,
+      "citation": {
+        "url": "https://github.com/TIGER-AI-Lab/MMLU-Pro/blob/f418b116db00b065c2aea046518d8fcf74d39872/README.md#-mini-leaderboard",
+        "locator": "Mini-Leaderboard / Gemini-1.5-Pro",
+        "content_hash": "dfbab62320e644f3682d4697e206160bbb59baafa324c59a17e4424328e3e5a5"
+      },
+      "metrics": [
+        {
+          "key": "overall_accuracy",
+          "value": 69.03,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ],
+      "source_data": {
+        "prompt_citation": {
+          "url": "https://raw.githubusercontent.com/TIGER-AI-Lab/MMLU-Pro/f418b116db00b065c2aea046518d8fcf74d39872/evaluate_from_api.py",
+          "locator": "single_request; category validation examples",
+          "content_hash": "6e00c0d57ed307b9e707b712ea796fbd2286c6d21889cd63bb58090fa72c5a99"
+        }
+      }
+    }
+  ]
+}

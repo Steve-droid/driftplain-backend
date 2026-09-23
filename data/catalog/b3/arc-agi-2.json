@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "source_id": "arc-agi-2",
+  "registry_hash": "3ada3d03d3bc94518d9369e9279b2ea036ae1db6277ee193d10263e3c76f9495",
+  "review": {
+    "reviewer": "Codex source transcription; pending Steve B3 delivery review",
+    "reviewed_at": "2026-09-23",
+    "note": "Bounded source rows inspected against the cited authoritative artifacts; no evaluation or LLM extraction executed."
+  },
+  "publication_date": null,
+  "coverage_note": "Three Base LLM rows from the official ARC-AGI-2 semi-private leaderboard. Zero remains zero. No preview, competition, public-set or ARC-AGI-3 rows included; publication dates are unknown.",
+  "rows": [
+    {
+      "locator": "v2_Semi_Private/Claude 3.7",
+      "model_label": "Claude 3.7",
+      "version": "ARC-AGI-2 official leaderboard; public and semi-private sets separate",
+      "protocol": {
+        "dataset": "ARC-AGI-2",
+        "set": "semi-private",
+        "system_category": "Base LLM",
+        "verification": "verified",
+        "source_model_id": "Claude 3.7"
+      },
+      "evaluator": "ARC Prize",
+      "publication_date": null,
+      "citation": {
+        "url": "https://arcprize.org/media/data/evaluations.json",
+        "locator": "v2_Semi_Private/Claude 3.7",
+        "content_hash": "e3905c70b9b61c49585db6f65bf22fbebbb6a396030a7770a921dd32af74ca03"
+      },
+      "metrics": [
+        {
+          "key": "task_accuracy",
+          "value": "0",
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ],
+      "source_data": {
+        "evaluation": {
+          "datasetId": "v2_Semi_Private",
+          "modelId": "Claude 3.7",
+          "score": 0,
+          "costPerTask": 0.12,
+          "resultsUrl": "",
+          "display": true
+        },
+        "model": {
+          "id": "Claude 3.7",
+          "displayName": "Claude 3.7",
+          "modelReleaseDate": "2025-02-24T00:00:00.000Z",
+          "providerId": "Anthropic",
+          "modelType": "Base LLM",
+          "modelGroup": null,
+          "paperUrl": null,
+          "codeUrl": "https://github.com/arcprize/model_baseline",
+          "dataUrl": null,
+          "featured": null
+        },
+        "model_citation": {
+          "url": "https://arcprize.org/media/data/models.json",
+          "locator": "Claude 3.7",
+          "content_hash": "8acda6a2df4d4738e5f09ee14ee0b13e5010664c2e0149b6721f7733f4212b34"
+        }
+      }
+    },
+    {
+      "locator": "v2_Semi_Private/Gemini 1.5 Pro",
+      "model_label": "Gemini 1.5 Pro",
+      "version": "ARC-AGI-2 official leaderboard; public and semi-private sets separate",
+      "protocol": {
+        "dataset": "ARC-AGI-2",
+        "set": "semi-private",
+        "system_category": "Base LLM",
+        "verification": "verified",
+        "source_model_id": "Gemini 1.5 Pro"
+      },
+      "evaluator": "ARC Prize",
+      "publication_date": null,
+      "citation": {
+        "url": "https://arcprize.org/media/data/evaluations.json",
+        "locator": "v2_Semi_Private/Gemini 1.5 Pro",
+        "content_hash": "e3905c70b9b61c49585db6f65bf22fbebbb6a396030a7770a921dd32af74ca03"
+      },
+      "metrics": [
+        {
+          "key": "task_accuracy",
+          "value": "0.800",
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ],
+      "source_data": {
+        "evaluation": {
+          "datasetId": "v2_Semi_Private",
+          "modelId": "Gemini 1.5 Pro",
+          "score": 0.008,
+          "costPerTask": 0.04,
+          "resultsUrl": "",
+          "display": true
+        },
+        "model": {
+          "id": "Gemini 1.5 Pro",
+          "displayName": "Gemini 1.5 Pro",
+          "modelReleaseDate": "2025-02-15T00:00:00.000Z",
+          "providerId": "Google",
+          "modelType": "Base LLM",
+          "modelGroup": null,
+          "paperUrl": null,
+          "codeUrl": "https://github.com/arcprize/model_baseline",
+          "dataUrl": null,
+          "featured": null
+        },
+        "model_citation": {
+          "url": "https://arcprize.org/media/data/models.json",
+          "locator": "Gemini 1.5 Pro",
+          "content_hash": "8acda6a2df4d4738e5f09ee14ee0b13e5010664c2e0149b6721f7733f4212b34"
+        }
+      }
+    },
+    {
+      "locator": "v2_Semi_Private/Gemini 2.0 Flash",
+      "model_label": "Gemini 2.0 Flash",
+      "version": "ARC-AGI-2 official leaderboard; public and semi-private sets separate",
+      "protocol": {
+        "dataset": "ARC-AGI-2",
+        "set": "semi-private",
+        "system_category": "Base LLM",
+        "verification": "verified",
+        "source_model_id": "Gemini 2.0 Flash"
+      },
+      "evaluator": "ARC Prize",
+      "publication_date": null,
+      "citation": {
+        "url": "https://arcprize.org/media/data/evaluations.json",
+        "locator": "v2_Semi_Private/Gemini 2.0 Flash",
+        "content_hash": "e3905c70b9b61c49585db6f65bf22fbebbb6a396030a7770a921dd32af74ca03"
+      },
+      "metrics": [
+        {
+          "key": "task_accuracy",
+          "value": "1.300",
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ],
+      "source_data": {
+        "evaluation": {
+          "datasetId": "v2_Semi_Private",
+          "modelId": "Gemini 2.0 Flash",
+          "score": 0.013,
+          "costPerTask": 0.004,
+          "resultsUrl": "",
+          "display": true
+        },
+        "model": {
+          "id": "Gemini 2.0 Flash",
+          "displayName": "Gemini 2.0 Flash",
+          "modelReleaseDate": "2025-02-02T00:00:00.000Z",
+          "providerId": "Google",
+          "modelType": "Base LLM",
+          "modelGroup": null,
+          "paperUrl": null,
+          "codeUrl": "https://github.com/arcprize/model_baseline",
+          "dataUrl": null,
+          "featured": null
+        },
+        "model_citation": {
+          "url": "https://arcprize.org/media/data/models.json",
+          "locator": "Gemini 2.0 Flash",
+          "content_hash": "8acda6a2df4d4738e5f09ee14ee0b13e5010664c2e0149b6721f7733f4212b34"
+        }
+      }
+    }
+  ]
+}

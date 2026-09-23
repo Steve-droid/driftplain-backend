@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "source_id": "frontiermath-tier4-v2",
+  "registry_hash": "3ada3d03d3bc94518d9369e9279b2ea036ae1db6277ee193d10263e3c76f9495",
+  "review": {
+    "reviewer": "Codex source transcription; pending Steve B3 delivery review",
+    "reviewed_at": "2026-09-23",
+    "note": "Bounded source rows inspected against the cited authoritative artifacts; no evaluation or LLM extraction executed."
+  },
+  "publication_date": null,
+  "coverage_note": "Three distinct models in Epoch internal Tier 4 v2 private runs. Raw ratio and standard error remain in source data; percentages are ratio multiplied by 100. The bulk CSV exceeds B1 automatic-fetch bounds, so only these reviewed rows are accepted.",
+  "rows": [
+    {
+      "locator": "naZno5TPpgMJfv2b5mhvUW",
+      "model_label": "Muse Spark 1.3",
+      "version": "Tier 4 v2, June 12, 2026 corrected set",
+      "protocol": {
+        "tier": 4,
+        "set_version": "v2",
+        "set": "private",
+        "effort": "max",
+        "tools": "Python and submit_answer",
+        "runner_model_id": "muse-spark-1.3_max",
+        "task_version": "2.0.0"
+      },
+      "evaluator": "Epoch AI",
+      "publication_date": null,
+      "citation": {
+        "url": "https://epoch.ai/data/benchmarks.csv",
+        "locator": "id_runs=naZno5TPpgMJfv2b5mhvUW",
+        "content_hash": "684065fe99d7360efc69f4253f5bfe83de5ee98e09328cfa49414d73482c263c"
+      },
+      "metrics": [
+        {
+          "key": "accuracy",
+          "value": "46.3414634146341500",
+          "unit": "percent",
+          "direction": "higher",
+          "reported_value": "verification_code:0.46±0.08"
+        }
+      ],
+      "source_data": {
+        "id_runs": "naZno5TPpgMJfv2b5mhvUW",
+        "task": "FrontierMath-Tier-4-v2-Private",
+        "model": "muse-spark-1.3_max",
+        "Model": "Muse Spark 1.3",
+        "mean_score": "0.4634146341463415",
+        "stderr": "0.07884502378168105",
+        "Scores": "verification_code:0.46±0.08",
+        "started_at": "2026-09-18T16:34:54.000Z",
+        "task version": "2.0.0",
+        "Status": "Success",
+        "Display name": "Muse Spark 1.3 (max)",
+        "uncertainty_note": "stderr and reported score string retained exactly; no confidence level is supplied in this CSV row, so no CI is invented."
+      }
+    },
+    {
+      "locator": "kZUdrqdGtCEJa3ip6L9YnH",
+      "model_label": "Qwen3.8 Max (0902)",
+      "version": "Tier 4 v2, June 12, 2026 corrected set",
+      "protocol": {
+        "tier": 4,
+        "set_version": "v2",
+        "set": "private",
+        "effort": "xhigh",
+        "tools": "Python and submit_answer",
+        "runner_model_id": "qwen3.8-max-0902_xhigh",
+        "task_version": "2.0.0"
+      },
+      "evaluator": "Epoch AI",
+      "publication_date": null,
+      "citation": {
+        "url": "https://epoch.ai/data/benchmarks.csv",
+        "locator": "id_runs=kZUdrqdGtCEJa3ip6L9YnH",
+        "content_hash": "684065fe99d7360efc69f4253f5bfe83de5ee98e09328cfa49414d73482c263c"
+      },
+      "metrics": [
+        {
+          "key": "accuracy",
+          "value": "34.14634146341463700",
+          "unit": "percent",
+          "direction": "higher",
+          "reported_value": "verification_code:0.34±0.07"
+        }
+      ],
+      "source_data": {
+        "id_runs": "kZUdrqdGtCEJa3ip6L9YnH",
+        "task": "FrontierMath-Tier-4-v2-Private",
+        "model": "qwen3.8-max-0902_xhigh",
+        "Model": "Qwen3.8 Max (0902)",
+        "mean_score": "0.34146341463414637",
+        "stderr": "0.07497768853141171",
+        "Scores": "verification_code:0.34±0.07",
+        "started_at": "2026-09-02T18:04:58.000Z",
+        "task version": "2.0.0",
+        "Status": "Success",
+        "Display name": "Qwen3.8 Max (0902) (xhigh)",
+        "uncertainty_note": "stderr and reported score string retained exactly; no confidence level is supplied in this CSV row, so no CI is invented."
+      }
+    },
+    {
+      "locator": "Lgy52ZT4YpFrUqqKVu2qUs",
+      "model_label": "Gemini 3.8 Flash",
+      "version": "Tier 4 v2, June 12, 2026 corrected set",
+      "protocol": {
+        "tier": 4,
+        "set_version": "v2",
+        "set": "private",
+        "effort": "high",
+        "tools": "Python and submit_answer",
+        "runner_model_id": "gemini-3.8-flash_high",
+        "task_version": "2.0.0"
+      },
+      "evaluator": "Epoch AI",
+      "publication_date": null,
+      "citation": {
+        "url": "https://epoch.ai/data/benchmarks.csv",
+        "locator": "id_runs=Lgy52ZT4YpFrUqqKVu2qUs",
+        "content_hash": "684065fe99d7360efc69f4253f5bfe83de5ee98e09328cfa49414d73482c263c"
+      },
+      "metrics": [
+        {
+          "key": "accuracy",
+          "value": "21.95121951219512200",
+          "unit": "percent",
+          "direction": "higher",
+          "reported_value": "verification_code:0.22±0.07"
+        }
+      ],
+      "source_data": {
+        "id_runs": "Lgy52ZT4YpFrUqqKVu2qUs",
+        "task": "FrontierMath-Tier-4-v2-Private",
+        "model": "gemini-3.8-flash_high",
+        "Model": "Gemini 3.8 Flash",
+        "mean_score": "0.21951219512195122",
+        "stderr": "0.06544589202438408",
+        "Scores": "verification_code:0.22±0.07",
+        "started_at": "2026-09-02T17:15:36.000Z",
+        "task version": "2.0.0",
+        "Status": "Success",
+        "Display name": "Gemini 3.8 Flash (high)",
+        "uncertainty_note": "stderr and reported score string retained exactly; no confidence level is supplied in this CSV row, so no CI is invented."
+      }
+    }
+  ]
+}
