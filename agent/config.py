@@ -46,6 +46,7 @@ class AgentConfig(BaseSettings):
     ci_token: SecretStr | None = Field(default=None, validation_alias="MODELMATCH_CI_TOKEN")
     # Let the agent POST /ci-runs itself (needs the trio above + a build id).
     post_result: bool = Field(default=False, validation_alias="MODELMATCH_POST_RESULT")
+    execution_config: bool = Field(default=False, validation_alias="MODELMATCH_EXECUTION_CONFIG")
     # Jenkins sets BUILD_TAG (jenkins-<job>-<n>); pass it through with `-e BUILD_TAG`.
     build_id: str | None = Field(
         default=None, validation_alias=AliasChoices("MODELMATCH_BUILD_ID", "BUILD_TAG")

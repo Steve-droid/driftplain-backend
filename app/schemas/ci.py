@@ -97,6 +97,12 @@ class CiRunIngest(AgentResult):
     def _task_envelope(self):
         r = self.task_result
         if r:
+            if r.provider_usage:
+                u = r.provider_usage
+                if (self.tokens_in, self.tokens_out, self.cache_read_tokens) != (
+                    u.input_tokens or 0, u.output_tokens or 0, u.cache_read_tokens
+                ):
+                    raise ValueError("Legacy token fields must match captured provider counts")
             if self.execution_revision_id is None:
                 raise ValueError("Task results require an execution revision")
             if r.kind != "findings" and self.findings:

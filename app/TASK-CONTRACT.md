@@ -1,5 +1,12 @@
 # Task/configuration/result contracts — B7, September 24, 2026
 
+**B8 extension:** the opt-in review CLI now consumes negotiated v2 configuration.
+Optional `taskResult.providerUsage` version 1 persists bounded reported categories in
+the existing immutable JSON envelope. It does not change the database schema or enable
+any pending model. See [review support](../agent/REVIEW-SUPPORT.md) for exact profiles,
+usage semantics, limits and the separately approved smoke plan. Earlier B7 descriptions
+of unwired CLI dispatch below describe the B7 baseline; legacy dispatch remains intact.
+
 `app/task_contracts.py` is the shared, dependency-light source of truth for the backend
 and both agent images. This release defines contracts and persists metadata. It does **not**
 execute new tasks, activate providers, run validation commands or claim containment is proven.

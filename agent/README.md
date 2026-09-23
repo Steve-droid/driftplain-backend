@@ -231,3 +231,11 @@ recorded DeepSeek run**), the config fetch + `/ci-runs` POST against an in-proce
 the P38e API, the golden Semgrep fixtures (`sample-run-deepseek.json`, `sample-run-gemini.json`),
 and the exit-code table. No provider is ever called; the one live run per release is a
 manual, counted step.
+
+## B8 explicit PR review
+
+The opt-in versioned review runner and six pending provider profiles are documented in
+[REVIEW-SUPPORT.md](REVIEW-SUPPORT.md). They are implemented and fixture-tested, but
+**not live-verified or runnable**. Existing legacy execution above remains compatible.
+`MODELMATCH_EXECUTION_CONFIG=true` selects the negotiated execution endpoint without
+falling back to legacy configuration. No deployment or runtime activation is included.
