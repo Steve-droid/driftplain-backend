@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "source_id": "logdx-ci",
+  "registry_hash": "3ada3d03d3bc94518d9369e9279b2ea036ae1db6277ee193d10263e3c76f9495",
+  "review": {
+    "reviewer": "Codex source transcription",
+    "reviewed_at": "2026-09-23",
+    "note": "Deterministic transcription of cited bounded public evidence under authorized B4 delivery; aliases remain unresolved."
+  },
+  "publication_date": null,
+  "coverage_note": "The agent-loop table compares preprocessing methods with one debugger model. It cannot rank general models for Driftplain diagnosis.",
+  "rows": [
+    {
+      "locator": "0:Sonnet 4.6",
+      "model_label": "Sonnet 4.6",
+      "version": "v1.2 at fc957f0d0d0082019606cc20b8fb545683a03b44",
+      "protocol": {
+        "source_release": "v1.2",
+        "method": "llm-summary-v1-gpt-5-mini",
+        "debugger": "Sonnet 4.6",
+        "runner": "real-agent-v1",
+        "case_count": 35,
+        "exclusions": "20 historical provider-error tuples reinserted as zero-score abstentions; denominator retained; not 20 removed cases",
+        "recommendation_eligible": false
+      },
+      "evaluator": "LogDx-CI maintainers",
+      "publication_date": null,
+      "citation": {
+        "url": "https://raw.githubusercontent.com/eyuansu62/LogDx/fc957f0d0d0082019606cc20b8fb545683a03b44/docs/leaderboard.md",
+        "locator": "agent-loop table / llm-summary-v1-gpt-5-mini; historical exclusions section",
+        "content_hash": "56d9b7de8ea9f7704a16703e8b09cef436a78584428f2a311a39620ab0cccdb6"
+      },
+      "metrics": [
+        {
+          "key": "diagnosis_score_v1_1",
+          "value": 0.749,
+          "unit": "ratio",
+          "denominator": 35
+        },
+        {
+          "key": "confident_error_rate",
+          "value": 0.0,
+          "unit": "ratio",
+          "direction": "lower",
+          "denominator": 35
+        }
+      ],
+      "source_data": {
+        "contextMethod": "llm-summary-v1-gpt-5-mini",
+        "debuggerModelLabel": "Sonnet 4.6",
+        "runner": "real-agent-v1",
+        "caseCount": 35,
+        "score": 0.749,
+        "confidentErrorRate": 0.0,
+        "upstream_artifact": "https://github.com/eyuansu62/LogDx/tree/fc957f0d0d0082019606cc20b8fb545683a03b44/results"
+      }
+    },
+    {
+      "locator": "1:Sonnet 4.6",
+      "model_label": "Sonnet 4.6",
+      "version": "v1.2 at fc957f0d0d0082019606cc20b8fb545683a03b44",
+      "protocol": {
+        "source_release": "v1.2",
+        "method": "hybrid-grep-120k-rtk-tail",
+        "debugger": "Sonnet 4.6",
+        "runner": "real-agent-v1",
+        "case_count": 35,
+        "exclusions": "20 historical provider-error tuples reinserted as zero-score abstentions; denominator retained; not 20 removed cases",
+        "recommendation_eligible": false
+      },
+      "evaluator": "LogDx-CI maintainers",
+      "publication_date": null,
+      "citation": {
+        "url": "https://raw.githubusercontent.com/eyuansu62/LogDx/fc957f0d0d0082019606cc20b8fb545683a03b44/docs/leaderboard.md",
+        "locator": "agent-loop table / hybrid-grep-120k-rtk-tail; historical exclusions section",
+        "content_hash": "56d9b7de8ea9f7704a16703e8b09cef436a78584428f2a311a39620ab0cccdb6"
+      },
+      "metrics": [
+        {
+          "key": "diagnosis_score_v1_1",
+          "value": 0.747,
+          "unit": "ratio",
+          "denominator": 35
+        },
+        {
+          "key": "confident_error_rate",
+          "value": 0.0,
+          "unit": "ratio",
+          "direction": "lower",
+          "denominator": 35
+        }
+      ],
+      "source_data": {
+        "contextMethod": "hybrid-grep-120k-rtk-tail",
+        "debuggerModelLabel": "Sonnet 4.6",
+        "runner": "real-agent-v1",
+        "caseCount": 35,
+        "score": 0.747,
+        "confidentErrorRate": 0.0,
+        "upstream_artifact": "https://github.com/eyuansu62/LogDx/tree/fc957f0d0d0082019606cc20b8fb545683a03b44/results"
+      }
+    },
+    {
+      "locator": "2:Sonnet 4.6",
+      "model_label": "Sonnet 4.6",
+      "version": "v1.2 at fc957f0d0d0082019606cc20b8fb545683a03b44",
+      "protocol": {
+        "source_release": "v1.2",
+        "method": "rtk-log",
+        "debugger": "Sonnet 4.6",
+        "runner": "real-agent-v1",
+        "case_count": 35,
+        "exclusions": "20 historical provider-error tuples reinserted as zero-score abstentions; denominator retained; not 20 removed cases",
+        "recommendation_eligible": false
+      },
+      "evaluator": "LogDx-CI maintainers",
+      "publication_date": null,
+      "citation": {
+        "url": "https://raw.githubusercontent.com/eyuansu62/LogDx/fc957f0d0d0082019606cc20b8fb545683a03b44/docs/leaderboard.md",
+        "locator": "agent-loop table / rtk-log; historical exclusions section",
+        "content_hash": "56d9b7de8ea9f7704a16703e8b09cef436a78584428f2a311a39620ab0cccdb6"
+      },
+      "metrics": [
+        {
+          "key": "diagnosis_score_v1_1",
+          "value": 0.689,
+          "unit": "ratio",
+          "denominator": 35
+        },
+        {
+          "key": "confident_error_rate",
+          "value": 0.057,
+          "unit": "ratio",
+          "direction": "lower",
+          "denominator": 35
+        }
+      ],
+      "source_data": {
+        "contextMethod": "rtk-log",
+        "debuggerModelLabel": "Sonnet 4.6",
+        "runner": "real-agent-v1",
+        "caseCount": 35,
+        "score": 0.689,
+        "confidentErrorRate": 0.057,
+        "upstream_artifact": "https://github.com/eyuansu62/LogDx/tree/fc957f0d0d0082019606cc20b8fb545683a03b44/results"
+      }
+    }
+  ]
+}

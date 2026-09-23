@@ -1,8 +1,8 @@
 """Serialize each source, validate all candidates, atomically promote or retain last good."""
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import hashlib
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert
@@ -100,19 +100,23 @@ def _promote(db, spec, source, state, raw, now):
         {"benchmark_family_id": family.id, "version": spec["version"]},
         {"methodology": spec["runner"], "methodology_url": spec["definitionUrl"]},
     )
-    immutable_upstream = spec[
-        "importMode"
-    ] == "automatic_structured" and batch.content_hash == spec.get("artifactSha256")
+    contract = spec.get("importContract")
+    immutable_upstream = (
+        batch.content_hash == contract.get("sha256")
+        if contract
+        else spec["importMode"] == "automatic_structured"
+        and batch.content_hash == spec.get("artifactSha256")
+    )
     # A reviewed manifest is the accepted artifact; do not attribute its hash to its cited HTML.
     snapshot = Snapshot(
         source_id=source.id,
         content_hash=batch.content_hash,
-        artifact_uri=spec["resultArtifact"]
+        artifact_uri=(contract["url"] if contract else spec["resultArtifact"])
         if immutable_upstream
         else "urn:sha256:" + batch.content_hash,
         fetched_at=now,
         publication_date=batch.publication_date,
-        content_type="application/json",
+        content_type="text/csv" if spec["id"] == "testgeneval" else "application/json",
         byte_count=len(raw),
     )
     db.add(snapshot)
@@ -151,7 +155,7 @@ def _promote(db, spec, source, state, raw, now):
             alias.resolution_status = "resolved"
             alias.catalog_model_id = target.id
             alias.reviewed_at = datetime.combine(
-                mapping.review.reviewed_at, datetime.min.time(), tzinfo=timezone.utc
+                mapping.review.reviewed_at, datetime.min.time(), tzinfo=UTC
             )
             alias.review_note = canonical(mapping)
         config = dict(row.protocol)
@@ -218,7 +222,11 @@ def _promote(db, spec, source, state, raw, now):
                     "unit": metric.unit,
                     "direction": metric.direction,
                     "minimum": 0,
-                    "maximum": 100,
+                    "maximum": 100
+                    if metric.unit == "percent"
+                    else 1
+                    if metric.unit == "ratio"
+                    else None,
                 },
             )
             db.add(
@@ -264,7 +272,7 @@ def _run(engine, source_id, acquire, *, checked_at=None):
         connection.commit()
         try:
             # A queued invocation's check starts only once it owns the source lock.
-            now = checked_at or datetime.now(timezone.utc)
+            now = checked_at or datetime.now(UTC)
             with Session(connection) as db:
                 try:
                     source, state = import_state(db, spec)
@@ -328,6 +336,15 @@ def import_source(engine, source_id, *, fetcher=None, checked_at=None):
     from app.catalog.imports.fetch import fetch
 
     spec = get_source(source_id)
+    if spec.get("importContract"):
+        from app.catalog.imports.acquisition import acquire_source
+
+        return _run(
+            engine,
+            source_id,
+            lambda state: acquire_source(spec, fetcher=fetcher, state=state),
+            checked_at=checked_at,
+        )
     if spec["importMode"] != "automatic_structured":
         raise ValueError("reviewed report: import an explicitly reviewed manifest")
     fetcher = fetcher or fetch

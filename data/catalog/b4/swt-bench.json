@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "source_id": "swt-bench",
+  "registry_hash": "3ada3d03d3bc94518d9369e9279b2ea036ae1db6277ee193d10263e3c76f9495",
+  "review": {
+    "reviewer": "Codex source transcription",
+    "reviewed_at": "2026-09-23",
+    "note": "Deterministic transcription of cited bounded public evidence under authorized B4 delivery; aliases remain unresolved."
+  },
+  "publication_date": null,
+  "coverage_note": "Scores belong to the complete agent and mode. They are bug-reproduction evidence, not TestGenEval Extra results or base-model scores.",
+  "rows": [
+    {
+      "locator": "0:GPT-5",
+      "model_label": "GPT-5",
+      "version": "Verified leaderboard at 330a649a764fab2fadaea632776eeae87272f74b",
+      "protocol": {
+        "split": "Verified",
+        "mode": "unittest",
+        "agent": "OpenHands",
+        "recommendation_eligible": false
+      },
+      "evaluator": "SWT-Bench maintainers",
+      "publication_date": "2025-08-22",
+      "citation": {
+        "url": "https://raw.githubusercontent.com/logic-star-ai/swt-bench/330a649a764fab2fadaea632776eeae87272f74b/docs/runs.csv",
+        "locator": "OpenHands / GPT-5 / unittest",
+        "content_hash": "46b9643248746666289b87af58736e2b64eb56ce08873e5258406526462bd677"
+      },
+      "metrics": [
+        {
+          "key": "success_rate",
+          "value": 79.8
+        }
+      ],
+      "source_data": {
+        "agent": "OpenHands",
+        "modelLabel": "GPT-5",
+        "mode": "unittest",
+        "successRate": 79.8,
+        "publishedAt": "2025-08-22",
+        "upstream_artifact": "https://raw.githubusercontent.com/logic-star-ai/swt-bench/330a649a764fab2fadaea632776eeae87272f74b/docs/runs.csv"
+      }
+    },
+    {
+      "locator": "1:Claude 3.7 Sonnet",
+      "model_label": "Claude 3.7 Sonnet",
+      "version": "Verified leaderboard at 330a649a764fab2fadaea632776eeae87272f74b",
+      "protocol": {
+        "split": "Verified",
+        "mode": "unittest",
+        "agent": "e-Otter++",
+        "recommendation_eligible": false
+      },
+      "evaluator": "SWT-Bench maintainers",
+      "publication_date": "2025-08-11",
+      "citation": {
+        "url": "https://raw.githubusercontent.com/logic-star-ai/swt-bench/330a649a764fab2fadaea632776eeae87272f74b/docs/runs.csv",
+        "locator": "e-Otter++ / Claude 3.7 Sonnet / unittest",
+        "content_hash": "46b9643248746666289b87af58736e2b64eb56ce08873e5258406526462bd677"
+      },
+      "metrics": [
+        {
+          "key": "success_rate",
+          "value": 62.1
+        }
+      ],
+      "source_data": {
+        "agent": "e-Otter++",
+        "modelLabel": "Claude 3.7 Sonnet",
+        "mode": "unittest",
+        "successRate": 62.1,
+        "publishedAt": "2025-08-11",
+        "upstream_artifact": "https://raw.githubusercontent.com/logic-star-ai/swt-bench/330a649a764fab2fadaea632776eeae87272f74b/docs/runs.csv"
+      }
+    },
+    {
+      "locator": "2:GPT-5-mini",
+      "model_label": "GPT-5-mini",
+      "version": "Verified leaderboard at 330a649a764fab2fadaea632776eeae87272f74b",
+      "protocol": {
+        "split": "Verified",
+        "mode": "unittest",
+        "agent": "OpenHands",
+        "recommendation_eligible": false
+      },
+      "evaluator": "SWT-Bench maintainers",
+      "publication_date": "2025-08-22",
+      "citation": {
+        "url": "https://raw.githubusercontent.com/logic-star-ai/swt-bench/330a649a764fab2fadaea632776eeae87272f74b/docs/runs.csv",
+        "locator": "OpenHands / GPT-5-mini / unittest",
+        "content_hash": "46b9643248746666289b87af58736e2b64eb56ce08873e5258406526462bd677"
+      },
+      "metrics": [
+        {
+          "key": "success_rate",
+          "value": 62.4
+        }
+      ],
+      "source_data": {
+        "agent": "OpenHands",
+        "modelLabel": "GPT-5-mini",
+        "mode": "unittest",
+        "successRate": 62.4,
+        "publishedAt": "2025-08-22",
+        "upstream_artifact": "https://raw.githubusercontent.com/logic-star-ai/swt-bench/330a649a764fab2fadaea632776eeae87272f74b/docs/runs.csv"
+      }
+    },
+    {
+      "locator": "3:Claude 4 Sonnet",
+      "model_label": "Claude 4 Sonnet",
+      "version": "Verified leaderboard at 330a649a764fab2fadaea632776eeae87272f74b",
+      "protocol": {
+        "split": "Verified",
+        "mode": "reproduction",
+        "agent": "TEX-T",
+        "recommendation_eligible": false
+      },
+      "evaluator": "SWT-Bench maintainers",
+      "publication_date": "2025-12-17",
+      "citation": {
+        "url": "https://raw.githubusercontent.com/logic-star-ai/swt-bench/330a649a764fab2fadaea632776eeae87272f74b/docs/runs.csv",
+        "locator": "TEX-T / Claude 4 Sonnet / reproduction",
+        "content_hash": "46b9643248746666289b87af58736e2b64eb56ce08873e5258406526462bd677"
+      },
+      "metrics": [
+        {
+          "key": "success_rate",
+          "value": 87.0
+        }
+      ],
+      "source_data": {
+        "agent": "TEX-T",
+        "modelLabel": "Claude 4 Sonnet",
+        "mode": "reproduction",
+        "successRate": 87.0,
+        "publishedAt": "2025-12-17",
+        "upstream_artifact": "https://raw.githubusercontent.com/logic-star-ai/swt-bench/330a649a764fab2fadaea632776eeae87272f74b/docs/runs.csv"
+      }
+    }
+  ]
+}

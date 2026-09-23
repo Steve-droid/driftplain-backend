@@ -1,9 +1,9 @@
 """B3 contracts: reviewed source meaning, fail-closed adapters, atomic promotion."""
 
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
 import hashlib
 import json
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -11,22 +11,27 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import DatabaseError
 
 from app.catalog.imports.adapters import parse
-from app.catalog.imports.registry import source_ids, get_source
 from app.catalog.imports.pipeline import import_bytes
+from app.catalog.imports.registry import get_source, source_ids
 from app.catalog.imports.retention import retention_candidates
 from app.models import (
-    CatalogObservation,
-    CatalogSourceSnapshot,
-    CatalogModelAlias,
-    CatalogProviderDeployment,
     CatalogImportState,
+    CatalogModelAlias,
+    CatalogObservation,
+    CatalogProviderDeployment,
+    CatalogSourceSnapshot,
 )
 
 DATA = Path(__file__).resolve().parents[1] / "data/catalog/b3"
-NOW = datetime(2026, 9, 23, tzinfo=timezone.utc)
+NOW = datetime(2026, 9, 23, tzinfo=UTC)
 
 
 def payload(source="mmlu-pro"):
+    from app.catalog.imports.registry import B4_IDS
+
+    if source in B4_IDS:
+        suffix = ".csv" if source == "testgeneval" else ".json"
+        return (DATA.parent / "b4" / (source + suffix)).read_bytes()
     return (DATA / f"{source}.json").read_bytes()
 
 
@@ -37,11 +42,11 @@ def mutate(change, source="mmlu-pro"):
 
 
 def test_registry_is_exact_b1_subset():
-    assert len(source_ids()) == 10
+    assert len(source_ids()) == 19
     assert get_source("swe-bench-verified")["maxPayloadBytes"] == 8000000
     assert get_source("mrcr-v2")["expectedCoverage"]["verifiedAtAudit"] is False
     with pytest.raises(ValueError):
-        get_source("deepswe-1-1")
+        get_source("not-a-source")
 
 
 @pytest.mark.parametrize(
@@ -277,7 +282,7 @@ def test_gpqa_diamond_paper_values_and_arc_zero():
     assert arc.rows[0].protocol["set"] == "semi-private"
 
 
-def test_all_ten_imports_are_catalog_only(migrated_engine, db_session):
+def test_all_nineteen_imports_are_catalog_only(migrated_engine, db_session):
     from app.models import (
         AgentRuntimeConfig,
         CatalogBenchmarkFamily,
@@ -300,13 +305,13 @@ def test_all_ten_imports_are_catalog_only(migrated_engine, db_session):
         result = import_bytes(migrated_engine, source, raw, checked_at=NOW)
         assert result.status == "promoted", (source, result)
         stored = db_session.get(CatalogSourcePayload, result.snapshot_id)
-        if source == "swe-bench-verified":
+        if source in ("swe-bench-verified", "codereviewbench", "realvuln-3-1-0"):
             assert stored is None  # exact pinned immutable upstream artifact
         else:
             assert stored.raw_bytes == raw
     assert (
         db_session.scalar(select(func.count()).select_from(CatalogBenchmarkFamily))
-        == 10
+        == 19
     )
     assert (
         db_session.scalar(select(func.count()).select_from(CatalogProviderDeployment))
@@ -557,8 +562,8 @@ def test_swe_lower_bound_attempts_and_unknown_verification_are_honest():
 
 
 def test_fetch_promote_304_and_report_mode(migrated_engine, db_session):
-    from app.catalog.imports.pipeline import import_source
     from app.catalog.imports.fetch import FetchResponse
+    from app.catalog.imports.pipeline import import_source
 
     raw = (
         Path(__file__).parent / "fixtures/catalog/swe-bench-verified.json"
@@ -697,6 +702,7 @@ def test_default_check_time_is_taken_after_acquiring_source_lock(
     migrated_engine, monkeypatch
 ):
     from sqlalchemy import event
+
     from app.catalog.imports import pipeline
 
     lock_acquired = []
@@ -720,8 +726,9 @@ def test_default_check_time_is_taken_after_acquiring_source_lock(
 
 
 def test_command_sanitizes_database_connection_failure(monkeypatch, capsys):
-    from sqlalchemy.exc import OperationalError
     import sqlalchemy
+    from sqlalchemy.exc import OperationalError
+
     from app.catalog.imports.__main__ import main
 
     def unavailable_engine(*args, **kwargs):

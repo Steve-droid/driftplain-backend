@@ -1,9 +1,9 @@
 """Persistence-free, bounded candidate contract. Unknown semantics stay explicit."""
 
-from datetime import date
-from decimal import Decimal
 import hashlib
 import json
+from datetime import date
+from decimal import Decimal
 from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
 
@@ -46,7 +46,7 @@ class Mapping(Record):
 class Metric(Record):
     key: Annotated[str, Field(min_length=1, max_length=128)]
     value: Decimal | None
-    unit: Text = "percent"
+    unit: Literal["percent", "ratio", "USD", "tokens", "steps"] = "percent"
     direction: Literal["higher", "lower"] = "higher"
     missing_reason: Annotated[str, Field(min_length=1, max_length=255)] | None = None
     reported_value: Annotated[str, Field(max_length=255)] | None = None
@@ -72,8 +72,19 @@ class Metric(Record):
         if (self.value is None) != (self.missing_reason is not None):
             raise ValueError("missing metric requires exactly one missing reason")
         for value in (self.value, self.confidence_low, self.confidence_high):
-            if value is not None and (not value.is_finite() or not 0 <= value <= 100):
-                raise ValueError("metric must be a finite percentage")
+            if value is not None and (
+                not value.is_finite()
+                or not 0
+                <= value
+                <= (
+                    100
+                    if self.unit == "percent"
+                    else 1
+                    if self.unit == "ratio"
+                    else Decimal("999999999999.99999999")
+                )
+            ):
+                raise ValueError("metric outside finite unit domain")
         interval = (self.confidence_low, self.confidence_high, self.confidence_level)
         if any(v is not None for v in interval):
             if any(v is None for v in interval) or self.value is None:

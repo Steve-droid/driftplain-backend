@@ -89,3 +89,15 @@ def test_304_and_header_injection():
     assert run(Transport([Response(status=304)]), etag='"v1"').status == 304
     with pytest.raises(FetchError):
         run(Transport([]), etag="a\r\nAuthorization: x")
+
+
+def test_csv_requires_explicit_source_media_contract():
+    with pytest.raises(FetchError):
+        run(Transport([Response(headers={"content-type": "text/csv"})]))
+    assert (
+        run(
+            Transport([Response(headers={"content-type": "text/csv"})]),
+            media_types=("text/csv",),
+        ).status
+        == 200
+    )
