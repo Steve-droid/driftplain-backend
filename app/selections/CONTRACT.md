@@ -1,5 +1,9 @@
 # Explicit execution selections — B6, September 24, 2026
 
+**B7 extension:** [Task/configuration/result contracts](../TASK-CONTRACT.md) adds typed
+`taskConfiguration`, an explicit version-1 negotiation inside v2 config, shared result
+vocabulary and owner-scoped metadata reads. The B6 selection/evidence rules below remain.
+
 B6 adds `/execution/v1` with configuration `contractVersion: 2`. Public `/catalog/v1`
 remains independent of runtimes, ownership and usage. Nothing imports or enables a runtime
 on startup. The new runtime table intentionally starts empty: the dated B1 audit found

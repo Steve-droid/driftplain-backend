@@ -29,10 +29,10 @@ from app.auth.deps import require_owner, require_real_project
 from app.ci.tokens import hash_token, mint_token
 from app.config import get_settings
 from app.models import (
-    ExecutionRevision,
     CatalogModel,
     CiFinding,
     CiRun,
+    ExecutionRevision,
     JenkinsConnection,
     Project,
     RecommendationOption,
@@ -43,6 +43,7 @@ from app.observability.metrics import record_llm_metrics
 from app.savings.service import compute_savings, price_for
 from app.schemas.agent_config import AgentConfigModel, AgentConfigOut
 from app.schemas.ci import CiRunIngest, CiRunOut, CiSetupOut
+from app.task_contracts import validate_result_configuration
 from app.tasks import CI_REVIEW, SECURITY_ANALYSIS, agent_task_for
 
 
@@ -456,6 +457,13 @@ def ingest_run(db: Session, project: Project, payload: CiRunIngest) -> CiRunOut:
 
     if revision:
         actual_cost = baseline_cost = savings = None  # B15 owns selected-model billing.
+        if payload.task_result:
+            try:
+                validate_result_configuration(payload.task_result, revision.configuration, revision.id, payload.gate)
+            except ValueError as e:
+                raise HTTPException(422, str(e)) from None
+        elif revision.configuration['taskType'] not in (CI_REVIEW, SECURITY_ANALYSIS):
+            raise HTTPException(422, 'This task requires a versioned taskResult')
 
     run = CiRun(
         project_id=project.id,
@@ -463,6 +471,7 @@ def ingest_run(db: Session, project: Project, payload: CiRunIngest) -> CiRunOut:
         model_id=selected_model_id,
         task=revision.configuration['taskType'] if revision else project.task_type,
         execution_revision_id=revision.id if revision else None,
+        task_result=payload.task_result.model_dump(mode='json', by_alias=True) if payload.task_result else None,
         tokens_in=payload.tokens_in,
         tokens_out=payload.tokens_out,
         cache_read_tokens=payload.cache_read_tokens,
@@ -522,4 +531,5 @@ def ingest_run(db: Session, project: Project, payload: CiRunIngest) -> CiRunOut:
         gate_reason=run.gate_reason,
         findings_count=len(payload.findings),
         execution_revision_id=run.execution_revision_id,
+        task_result=run.task_result,
     )
