@@ -202,6 +202,7 @@ def test_agent_config_route_is_registered_next_to_ci_runs(client):
     paths = {r.path for r in client.app.routes}
     assert "/projects/{project_id}/agent-config" in paths
     assert "/projects/{project_id}/ci-runs" in paths
-    # only the two projects-scoped CI-token routes exist, nothing exposes the token
-    assert not any(p.endswith("/ci-token") for p in paths)
+    # B6 adds an owner-authenticated mint-once endpoint, never a token read route.
+    assert not any(r.path.endswith("/ci-token") and "GET" in r.methods for r in client.app.routes)
+    assert "/projects/{project_id}/ci-token" not in paths
     _ = select  # keep the import honest for editors that flag unused names

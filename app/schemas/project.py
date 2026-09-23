@@ -65,9 +65,9 @@ class ProjectOut(CamelModel):
     id: int
     name: str
     user_id: int  # owner
-    selected_option_id: int
+    selected_option_id: Optional[int]
     selected_option_model: str  # the recommended model behind the selected option
-    baseline_model_id: int
+    baseline_model_id: Optional[int]
     baseline_model: str
     baseline_vendor: str
     # E20: the task this project's agent runs (catalog vocabulary) + the review
@@ -79,3 +79,4 @@ class ProjectOut(CamelModel):
     # "setup incomplete" with an edit/retry path (S15d defer-create partial-failure).
     setup_complete: bool
     is_example: bool = False
+    execution_revision_id: Optional[int] = None

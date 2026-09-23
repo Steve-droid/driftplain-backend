@@ -485,6 +485,7 @@ class CatalogModelAlias(Base):
 class CatalogObservation(Base):
     __tablename__ = "catalog_observation"
     __table_args__ = (
+        UniqueConstraint("id", "catalog_model_id", "source_snapshot_id", name="uq_observation_model_snapshot"),
         ForeignKeyConstraint(
             ["protocol_id", "benchmark_version_id"],
             ["catalog_protocol.id", "catalog_protocol.benchmark_version_id"],
@@ -727,9 +728,15 @@ class RecommendationEvidence(Base):
 class Project(Base):
     __tablename__ = "project"
     __table_args__ = (Index("uq_project_user_example_task", "user_id", "task_type",
-                           unique=True, postgresql_where=text("is_example")),)
+                           unique=True, postgresql_where=text("is_example")),
+        UniqueConstraint("id", "user_id", name="uq_project_owner"),
+        ForeignKeyConstraint(["execution_revision_id", "id"],
+            ["execution_revision.id", "execution_revision.project_id"],
+            name="fk_project_execution_revision", use_alter=True),)
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    execution_revision_id: Mapped[Optional[int]] = mapped_column(Integer)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement="ignore_fk")
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
     name: Mapped[str] = mapped_column(String(200))
     is_example: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
@@ -791,10 +798,14 @@ class CiRun(Base):
         UniqueConstraint(
             "project_id", "jenkins_build_id", name="uq_ci_run_project_build"
         ),
+        ForeignKeyConstraint(["execution_revision_id", "project_id"],
+            ["execution_revision.id", "execution_revision.project_id"],
+            name="fk_run_execution_revision"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id", ondelete="CASCADE"))
+    execution_revision_id: Mapped[Optional[int]] = mapped_column(Integer)
     jenkins_build_id: Mapped[Optional[str]] = mapped_column(String(255))
     model_id: Mapped[Optional[int]] = mapped_column(ForeignKey("model.id"))
     # The task the run performed — the project's task_type at ingest (one vocabulary

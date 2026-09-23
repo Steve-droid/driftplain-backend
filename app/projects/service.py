@@ -48,9 +48,13 @@ def _resolve_task_type(option: RecommendationOption, requested: str | None) -> s
 
 def _to_out(db: Session, project: Project) -> ProjectOut:
     """Enrich a Project with the model names the FE renders (one lookup each)."""
-    option = db.get(RecommendationOption, project.selected_option_id)
+    option = db.get(RecommendationOption, project.selected_option_id) if project.selected_option_id else None
     selected_model = db.get(Model, option.model_id) if option else None
-    baseline = db.get(Model, project.baseline_model_id)
+    baseline = db.get(Model, project.baseline_model_id) if project.baseline_model_id else None
+    if project.execution_revision_id:
+        from app.models import ExecutionRevision, CatalogModel
+        revision = db.get(ExecutionRevision, project.execution_revision_id)
+        selected_model = db.get(CatalogModel, revision.configuration['catalogModelId'])
     # Onboarded only once the Jenkins connection exists with a minted CI token (the
     # user finished /ci-setup). Anything short of that is "setup incomplete" (S15d).
     conn = db.scalar(
@@ -70,6 +74,7 @@ def _to_out(db: Session, project: Project) -> ProjectOut:
         review_preferences=project.review_preferences,
         setup_complete=setup_complete,
         is_example=project.is_example,
+        execution_revision_id=project.execution_revision_id,
     )
 
 
@@ -125,10 +130,22 @@ def update_project(
     """Partial edit (S15d): rename and/or re-pick. Same validation as create —
     a new option must exist AND belong to the caller (403 otherwise); a new
     baseline must be a real model. Omitted fields are left untouched."""
-    project = db.get(Project, project_id)
+    project = db.scalar(
+        select(Project).where(Project.id == project_id).with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if project is None:
         raise _not_found("Project")
     require_owner(project.user_id, current_user)  # 403 if not the caller's
+
+    if project.execution_revision_id:
+        from app.selections.service import update_project as explicit_update
+        from app.selections.schemas import ExplicitProjectUpdate
+        fields = payload.model_dump(exclude_unset=True)
+        if set(fields) - {'name', 'review_preferences'}:
+            raise HTTPException(422, 'Explicit selections must be edited through /execution/v1')
+        explicit_update(db, project_id, ExplicitProjectUpdate(**fields), current_user)
+        return _to_out(db, project)
 
     data = payload.model_dump(exclude_unset=True)
     require_real_project(project)

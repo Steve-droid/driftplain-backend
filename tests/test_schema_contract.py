@@ -47,6 +47,7 @@ CONTRACT = {
         "name", "selectedOptionId", "baselineModelId", "taskType", "reviewPreferences",
     },
     "ProjectOut": {
+        "executionRevisionId",
         "id", "name", "userId", "selectedOptionId", "selectedOptionModel",
         "baselineModelId", "baselineModel", "baselineVendor", "taskType",
         "reviewPreferences", "setupComplete", "isExample",
