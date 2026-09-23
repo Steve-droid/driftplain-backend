@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from typing import Literal
 
@@ -9,10 +10,12 @@ from sqlalchemy import case, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.catalog.pagination import CatalogCursorError, decode_cursor, encode_cursor
+from app.catalog.presentation import PRESENTATION
 from app.models import (
     CatalogBenchmarkFamily,
     CatalogBenchmarkVersion,
     CatalogEvaluator,
+    CatalogImportState,
     CatalogMetricDefinition,
     CatalogModel,
     CatalogModelAlias,
@@ -44,6 +47,8 @@ from app.schemas.catalog import (
     CatalogProviderPage,
     CatalogSearchItemOut,
     CatalogSearchPage,
+    CatalogSourceOut,
+    CatalogSourcePage,
 )
 
 SearchType = Literal["model", "benchmark", "provider"]
@@ -78,9 +83,10 @@ def _named_page(
     cursor: str | None,
     q: str | None,
     conditions: list,
+    extra: dict | None = None,
 ):
     q = _normalise_query(q)
-    parameters = {"q": q}
+    parameters = {"q": q, **(extra or {})}
     order = "normalized-name,id"
     name_key = func.lower(entity.name).collate("C")
     stmt = select(entity, name_key.label("sort_name")).where(*conditions)
@@ -110,7 +116,9 @@ def _named_page(
             order=order,
             last=[last_name, last.id],
         )
-    return rows, CatalogPageInfo(limit=limit, next_cursor=next_cursor, has_more=has_more)
+    return rows, CatalogPageInfo(
+        limit=limit, next_cursor=next_cursor, has_more=has_more
+    )
 
 
 def _model_related_match(model, q: str, *, prefix: bool = False, exact: bool = False):
@@ -128,7 +136,9 @@ def _model_related_match(model, q: str, *, prefix: bool = False, exact: bool = F
     )
     provider_match = exists(
         select(CatalogProviderDeployment.id)
-        .join(CatalogProvider, CatalogProvider.id == CatalogProviderDeployment.provider_id)
+        .join(
+            CatalogProvider, CatalogProvider.id == CatalogProviderDeployment.provider_id
+        )
         .where(
             CatalogProviderDeployment.model_id == model.id,
             or_(
@@ -191,7 +201,9 @@ def get_model(db: Session, model_id: int) -> CatalogModelDetailOut | None:
     ).all()
     deployments = db.execute(
         select(CatalogProviderDeployment, CatalogProvider.name)
-        .join(CatalogProvider, CatalogProvider.id == CatalogProviderDeployment.provider_id)
+        .join(
+            CatalogProvider, CatalogProvider.id == CatalogProviderDeployment.provider_id
+        )
         .where(CatalogProviderDeployment.model_id == model.id)
         .order_by(func.lower(CatalogProvider.name), CatalogProviderDeployment.id)
     ).all()
@@ -202,7 +214,9 @@ def get_model(db: Session, model_id: int) -> CatalogModelDetailOut | None:
         organization=model.organization,
         description=model.description,
         aliases=list(aliases),
-        deployments=[_deployment_out(row, provider_name) for row, provider_name in deployments],
+        deployments=[
+            _deployment_out(row, provider_name) for row, provider_name in deployments
+        ],
     )
 
 
@@ -228,7 +242,9 @@ def list_providers(
         conditions=conditions,
     )
     return CatalogProviderPage(
-        items=[CatalogProviderOut(id=row.id, slug=row.slug, name=row.name) for row in rows],
+        items=[
+            CatalogProviderOut(id=row.id, slug=row.slug, name=row.name) for row in rows
+        ],
         page_info=page_info,
     )
 
@@ -254,7 +270,9 @@ def get_provider(db: Session, provider_id: int) -> CatalogProviderDetailOut | No
     deployments = db.scalars(
         select(CatalogProviderDeployment)
         .where(CatalogProviderDeployment.provider_id == provider.id)
-        .order_by(func.lower(CatalogProviderDeployment.name), CatalogProviderDeployment.id)
+        .order_by(
+            func.lower(CatalogProviderDeployment.name), CatalogProviderDeployment.id
+        )
     ).all()
     return CatalogProviderDetailOut(
         id=provider.id,
@@ -267,10 +285,25 @@ def get_provider(db: Session, provider_id: int) -> CatalogProviderDetailOut | No
 
 
 def list_benchmarks(
-    db: Session, *, limit: int, cursor: str | None = None, q: str | None = None
+    db: Session,
+    *,
+    limit: int,
+    cursor: str | None = None,
+    q: str | None = None,
+    collection: str | None = None,
 ) -> CatalogBenchmarkPage:
     normalized = _normalise_query(q)
     conditions = []
+    if collection:
+        conditions.append(
+            CatalogBenchmarkFamily.slug.in_(
+                [
+                    slug
+                    for slug, meta in PRESENTATION.items()
+                    if meta["collection"] == collection
+                ]
+            )
+        )
     if normalized:
         conditions.append(
             or_(
@@ -286,23 +319,58 @@ def list_benchmarks(
         limit=limit,
         cursor=cursor,
         q=normalized,
+        extra={"collection": collection} if collection else None,
         conditions=conditions,
     )
     return CatalogBenchmarkPage(
-        items=[_benchmark_out(row) for row in rows], page_info=page_info
+        items=_benchmark_outs(db, rows),
+        page_info=page_info,
     )
 
 
-def _benchmark_out(row: CatalogBenchmarkFamily) -> CatalogBenchmarkOut:
+def _benchmark_out(row: CatalogBenchmarkFamily, sources=None) -> CatalogBenchmarkOut:
     return CatalogBenchmarkOut(
         id=row.id,
         slug=row.slug,
         name=row.name,
         description=row.description,
-        tooltip=row.tooltip,
+        tooltip=row.tooltip or PRESENTATION.get(row.slug, {}).get("tooltip"),
+        collection=PRESENTATION.get(row.slug, {}).get("collection"),
+        sources=sources or [],
         methodology_url=row.methodology_url,
         limitations=row.limitations,
     )
+
+
+def _benchmark_outs(db, rows):
+    sources = _family_sources(db, rows)
+    ids = [row.id for row in rows]
+    versions = defaultdict(list)
+    units = defaultdict(set)
+    for family_id, version in db.execute(
+        select(
+            CatalogBenchmarkVersion.benchmark_family_id, CatalogBenchmarkVersion.version
+        )
+        .where(CatalogBenchmarkVersion.benchmark_family_id.in_(ids))
+        .order_by(CatalogBenchmarkVersion.id)
+    ):
+        versions[family_id].append(version)
+    for family_id, unit in db.execute(
+        select(
+            CatalogMetricDefinition.benchmark_family_id, CatalogMetricDefinition.unit
+        )
+        .where(CatalogMetricDefinition.benchmark_family_id.in_(ids))
+        .distinct()
+    ):
+        if unit is not None:
+            units[family_id].add(unit)
+    output = []
+    for row in rows:
+        item = _benchmark_out(row, sources.get(row.id, []))
+        item.version_labels = versions[row.id]
+        item.metric_units = sorted(units[row.id])
+        output.append(item)
+    return output
 
 
 def get_benchmark(db: Session, benchmark_id: int) -> CatalogBenchmarkDetailOut | None:
@@ -318,7 +386,9 @@ def get_benchmark(db: Session, benchmark_id: int) -> CatalogBenchmarkDetailOut |
     if versions:
         for protocol in db.scalars(
             select(CatalogProtocol)
-            .where(CatalogProtocol.benchmark_version_id.in_([row.id for row in versions]))
+            .where(
+                CatalogProtocol.benchmark_version_id.in_([row.id for row in versions])
+            )
             .order_by(CatalogProtocol.benchmark_version_id, CatalogProtocol.id)
         ):
             protocols_by_version[protocol.benchmark_version_id].append(protocol)
@@ -327,7 +397,7 @@ def get_benchmark(db: Session, benchmark_id: int) -> CatalogBenchmarkDetailOut |
         .where(CatalogTaskBenchmark.benchmark_family_id == family.id)
         .order_by(CatalogTaskBenchmark.task_type)
     ).all()
-    base = _benchmark_out(family)
+    base = _benchmark_outs(db, [family])[0]
     return CatalogBenchmarkDetailOut(
         **base.model_dump(),
         versions=[
@@ -369,6 +439,7 @@ def list_observations(
     evaluator_id: int | None = None,
     snapshot_id: int | None = None,
     q: str | None = None,
+    view: str = "history",
 ) -> CatalogObservationPage:
     parameters = {
         "modelId": model_id,
@@ -382,8 +453,16 @@ def list_observations(
     normalized = _normalise_query(q)
     if normalized is not None:
         parameters["q"] = normalized
+    if view == "active":
+        parameters["view"] = view
     order = "observation-id"
     stmt = select(CatalogObservation)
+    if view == "active":
+        stmt = stmt.where(
+            CatalogObservation.source_snapshot_id.in_(
+                select(CatalogImportState.active_snapshot_id)
+            )
+        )
     if normalized is not None:
         stmt = stmt.where(_contains(CatalogObservation.source_model_label, normalized))
     for column, value in (
@@ -443,7 +522,9 @@ def _map_by_id(db: Session, entity, ids: set[int | None]):
     real_ids = {value for value in ids if value is not None}
     if not real_ids:
         return {}
-    return {row.id: row for row in db.scalars(select(entity).where(entity.id.in_(real_ids)))}
+    return {
+        row.id: row for row in db.scalars(select(entity).where(entity.id.in_(real_ids)))
+    }
 
 
 def _observation_outs(
@@ -451,17 +532,33 @@ def _observation_outs(
 ) -> list[CatalogObservationOut]:
     if not observations:
         return []
-    families = _map_by_id(db, CatalogBenchmarkFamily, {o.benchmark_family_id for o in observations})
-    versions = _map_by_id(db, CatalogBenchmarkVersion, {o.benchmark_version_id for o in observations})
+    families = _map_by_id(
+        db, CatalogBenchmarkFamily, {o.benchmark_family_id for o in observations}
+    )
+    versions = _map_by_id(
+        db, CatalogBenchmarkVersion, {o.benchmark_version_id for o in observations}
+    )
     protocols = _map_by_id(db, CatalogProtocol, {o.protocol_id for o in observations})
-    evaluators = _map_by_id(db, CatalogEvaluator, {o.evaluator_id for o in observations})
-    snapshots = _map_by_id(db, CatalogSourceSnapshot, {o.source_snapshot_id for o in observations})
+    evaluators = _map_by_id(
+        db, CatalogEvaluator, {o.evaluator_id for o in observations}
+    )
+    snapshots = _map_by_id(
+        db, CatalogSourceSnapshot, {o.source_snapshot_id for o in observations}
+    )
     sources = _map_by_id(db, CatalogSource, {s.source_id for s in snapshots.values()})
+    states = {
+        s.source_id: s
+        for s in db.scalars(
+            select(CatalogImportState).where(CatalogImportState.source_id.in_(sources))
+        )
+    }
     models = _map_by_id(db, CatalogModel, {o.catalog_model_id for o in observations})
     deployments = _map_by_id(
         db, CatalogProviderDeployment, {o.provider_deployment_id for o in observations}
     )
-    providers = _map_by_id(db, CatalogProvider, {d.provider_id for d in deployments.values()})
+    providers = _map_by_id(
+        db, CatalogProvider, {d.provider_id for d in deployments.values()}
+    )
 
     metric_rows = db.execute(
         select(CatalogObservationMetric, CatalogMetricDefinition)
@@ -469,7 +566,9 @@ def _observation_outs(
             CatalogMetricDefinition,
             CatalogMetricDefinition.id == CatalogObservationMetric.metric_definition_id,
         )
-        .where(CatalogObservationMetric.observation_id.in_([o.id for o in observations]))
+        .where(
+            CatalogObservationMetric.observation_id.in_([o.id for o in observations])
+        )
         .order_by(CatalogObservationMetric.observation_id, CatalogObservationMetric.id)
     ).all()
     metrics: dict[int, list[CatalogMetricValueOut]] = defaultdict(list)
@@ -508,6 +607,15 @@ def _observation_outs(
         model = models.get(observation.catalog_model_id)
         deployment = deployments.get(observation.provider_deployment_id)
         provider = providers.get(deployment.provider_id) if deployment else None
+        state = states.get(source.id) if source else None
+        coverage = None
+        if observation.origin == "source" and observation.notes:
+            try:
+                notes = json.loads(observation.notes)
+                if isinstance(notes, dict) and isinstance(notes.get("coverage"), str):
+                    coverage = notes["coverage"]
+            except (ValueError, TypeError):
+                pass
         output.append(
             CatalogObservationOut(
                 id=observation.id,
@@ -521,10 +629,24 @@ def _observation_outs(
                 evaluator=evaluator.name if evaluator else None,
                 source_snapshot_id=snapshot.id if snapshot else None,
                 source_name=source.name if source else None,
-                source_url=snapshot.artifact_uri if snapshot else observation.source_url,
+                source_url=snapshot.artifact_uri
+                if snapshot
+                else observation.source_url,
                 source_content_hash=snapshot.content_hash if snapshot else None,
                 source_fetched_at=snapshot.fetched_at if snapshot else None,
                 source_publication_date=snapshot.publication_date if snapshot else None,
+                snapshot_status=(
+                    "active"
+                    if state.active_snapshot_id == snapshot.id
+                    else "historical"
+                )
+                if state and snapshot
+                else "unknown",
+                citation_url=observation.source_url,
+                coverage_note=coverage,
+                runner=protocol.runner if protocol else None,
+                runner_version=protocol.runner_version if protocol else None,
+                protocol_configuration=protocol.configuration if protocol else {},
                 source_model_label=observation.source_model_label,
                 model_id=model.id if model else None,
                 model_name=model.name if model else None,
@@ -587,7 +709,9 @@ def search_catalog(
             _contains(entity.name, normalized),
             _contains(entity.slug, normalized),
         )
-        exact = or_(func.lower(entity.name) == normalized, func.lower(entity.slug) == normalized)
+        exact = or_(
+            func.lower(entity.name) == normalized, func.lower(entity.slug) == normalized
+        )
         prefix = or_(
             _prefix(entity.name, normalized),
             _prefix(entity.slug, normalized),
@@ -606,7 +730,11 @@ def search_catalog(
             order=order,
             last_size=3,
         )
-        if not isinstance(last_rank, int) or not isinstance(last_name, str) or not isinstance(last_id, int):
+        if (
+            not isinstance(last_rank, int)
+            or not isinstance(last_name, str)
+            or not isinstance(last_id, int)
+        ):
             raise CatalogCursorError("Invalid catalog cursor position")
         stmt = stmt.where(
             or_(
@@ -633,7 +761,9 @@ def search_catalog(
                 type=resource_type,
                 id=row.id,
                 name=row.name,
-                subtitle=(row.organization if resource_type == "model" else row.description),
+                subtitle=(
+                    row.organization if resource_type == "model" else row.description
+                ),
             )
             for row, _rank, _sort_name in rows
         ],
@@ -641,3 +771,91 @@ def search_catalog(
             limit=limit, next_cursor=next_cursor, has_more=has_more
         ),
     )
+
+
+def _source_outs(db, sources):
+    states = {
+        s.source_id: s
+        for s in db.scalars(
+            select(CatalogImportState).where(
+                CatalogImportState.source_id.in_([s.id for s in sources])
+            )
+        )
+    }
+    snapshots = _map_by_id(
+        db, CatalogSourceSnapshot, {s.active_snapshot_id for s in states.values()}
+    )
+    output = []
+    for source in sources:
+        state = states.get(source.id)
+        snapshot = snapshots.get(state.active_snapshot_id) if state else None
+        output.append(
+            CatalogSourceOut(
+                id=source.id,
+                slug=source.slug,
+                name=source.name,
+                result_url=source.result_url,
+                attribution=source.attribution,
+                license_text=source.license_text,
+                snapshot_id=snapshot.id if snapshot else None,
+                fetched_at=snapshot.fetched_at if snapshot else None,
+                publication_date=snapshot.publication_date if snapshot else None,
+                refresh_status=(
+                    "failed"
+                    if state.failure_count
+                    else "ok"
+                    if state.last_successful_check_at
+                    else "unknown"
+                )
+                if state
+                else "unknown",
+                checked_at=state.last_checked_at if state else None,
+            )
+        )
+    return output
+
+
+def _family_sources(db, families):
+    # Batched public dimensions only. Definition-only B3/B4 families share source slugs.
+    pairs = db.execute(
+        select(CatalogObservation.benchmark_family_id, CatalogSourceSnapshot.source_id)
+        .join(
+            CatalogSourceSnapshot,
+            CatalogSourceSnapshot.id == CatalogObservation.source_snapshot_id,
+        )
+        .where(CatalogObservation.benchmark_family_id.in_([f.id for f in families]))
+        .distinct()
+    ).all()
+    sources = list(
+        db.scalars(
+            select(CatalogSource)
+            .where(
+                or_(
+                    CatalogSource.id.in_([p[1] for p in pairs]),
+                    CatalogSource.slug.in_([f.slug for f in families]),
+                )
+            )
+            .order_by(CatalogSource.id)
+        )
+    )
+    projected = {s.id: s for s in _source_outs(db, sources)}
+    ids = defaultdict(set)
+    for family_id, source_id in pairs:
+        ids[family_id].add(source_id)
+    for f in families:
+        ids[f.id].update(s.id for s in sources if s.slug == f.slug)
+    return {f.id: [projected[i] for i in sorted(ids[f.id])] for f in families}
+
+
+def list_sources(db: Session, *, limit: int, cursor=None, q=None) -> CatalogSourcePage:
+    normalized = _normalise_query(q)
+    rows, page_info = _named_page(
+        db,
+        entity=CatalogSource,
+        resource="sources",
+        limit=limit,
+        cursor=cursor,
+        q=normalized,
+        conditions=[_contains(CatalogSource.name, normalized)] if normalized else [],
+    )
+    return CatalogSourcePage(items=_source_outs(db, rows), page_info=page_info)

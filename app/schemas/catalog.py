@@ -169,6 +169,25 @@ class CatalogBenchmarkVersionOut(CamelModel):
     protocols: list[CatalogProtocolOut]
 
 
+class CatalogSourceOut(CamelModel):
+    id: int
+    slug: str
+    name: str
+    result_url: Optional[str] = None
+    attribution: Optional[str] = None
+    license_text: Optional[str] = None
+    snapshot_id: Optional[int] = None
+    fetched_at: Optional[datetime] = None
+    publication_date: Optional[date] = None
+    refresh_status: Literal["ok", "failed", "unknown"]
+    checked_at: Optional[datetime] = None
+
+
+class CatalogSourcePage(CamelModel):
+    items: list[CatalogSourceOut]
+    page_info: CatalogPageInfo
+
+
 class CatalogBenchmarkOut(CamelModel):
     id: int
     slug: str
@@ -177,6 +196,11 @@ class CatalogBenchmarkOut(CamelModel):
     tooltip: Optional[str] = None
     methodology_url: Optional[str] = None
     limitations: Optional[str] = None
+
+    collection: Optional[str] = None
+    sources: list[CatalogSourceOut] = []
+    version_labels: list[str] = []
+    metric_units: list[str] = []
 
 
 class CatalogBenchmarkDetailOut(CatalogBenchmarkOut):
@@ -222,6 +246,12 @@ class CatalogObservationOut(CamelModel):
     source_content_hash: Optional[str] = None
     source_fetched_at: Optional[datetime] = None
     source_publication_date: Optional[date] = None
+    snapshot_status: Literal["active", "historical", "unknown"] = "unknown"
+    citation_url: Optional[str] = None
+    coverage_note: Optional[str] = None
+    runner: Optional[str] = None
+    runner_version: Optional[str] = None
+    protocol_configuration: dict = {}
     source_model_label: str
     model_id: Optional[int] = None
     model_name: Optional[str] = None

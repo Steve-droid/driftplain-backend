@@ -18,6 +18,7 @@ from app.schemas.catalog import (
     CatalogProviderDetailOut,
     CatalogProviderPage,
     CatalogSearchPage,
+    CatalogSourcePage,
 )
 
 router = APIRouter(prefix="/catalog/v1", tags=["public-catalog"])
@@ -89,10 +90,18 @@ def benchmarks(
     limit: int = Query(25, ge=1, le=100),
     cursor: str | None = Query(None, max_length=2048),
     q: str | None = Query(None, max_length=200),
+    collection: str | None = Query(None, max_length=64),
     db: Session = Depends(get_db),
 ) -> CatalogBenchmarkPage:
-    _reject_unknown(request, {"limit", "cursor", "q"})
-    return _cursor_call(queries.list_benchmarks, db=db, limit=limit, cursor=cursor, q=q)
+    _reject_unknown(request, {"limit", "cursor", "q", "collection"})
+    return _cursor_call(
+        queries.list_benchmarks,
+        db=db,
+        limit=limit,
+        cursor=cursor,
+        q=q,
+        collection=collection,
+    )
 
 
 @router.get("/benchmarks/{benchmark_id}", response_model=CatalogBenchmarkDetailOut)
@@ -118,6 +127,7 @@ def observations(
     evaluator_id: int | None = Query(None, alias="evaluatorId", ge=1),
     snapshot_id: int | None = Query(None, alias="snapshotId", ge=1),
     q: str | None = Query(None, min_length=1, max_length=200),
+    view: Literal["active", "history"] = Query("history"),
     db: Session = Depends(get_db),
 ) -> CatalogObservationPage:
     _reject_unknown(
@@ -133,6 +143,7 @@ def observations(
             "evaluatorId",
             "snapshotId",
             "q",
+            "view",
         },
     )
     return _cursor_call(
@@ -148,6 +159,7 @@ def observations(
         evaluator_id=evaluator_id,
         snapshot_id=snapshot_id,
         q=q,
+        view=view,
     )
 
 
@@ -179,3 +191,15 @@ def search(
         limit=limit,
         cursor=cursor,
     )
+
+
+@router.get("/sources", response_model=CatalogSourcePage)
+def sources(
+    request: Request,
+    limit: int = Query(25, ge=1, le=100),
+    cursor: str | None = Query(None, max_length=2048),
+    q: str | None = Query(None, max_length=200),
+    db: Session = Depends(get_db),
+) -> CatalogSourcePage:
+    _reject_unknown(request, {"limit", "cursor", "q"})
+    return _cursor_call(queries.list_sources, db=db, limit=limit, cursor=cursor, q=q)
