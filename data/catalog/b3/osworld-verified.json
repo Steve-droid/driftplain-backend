@@ -1,0 +1,188 @@
+{
+  "schema_version": 1,
+  "source_id": "osworld-verified",
+  "registry_hash": "3ada3d03d3bc94518d9369e9279b2ea036ae1db6277ee193d10263e3c76f9495",
+  "review": {
+    "reviewer": "Codex source transcription; pending Steve B3 delivery review",
+    "reviewed_at": "2026-09-23",
+    "note": "Bounded source rows inspected against the cited authoritative artifacts; no evaluation or LLM extraction executed."
+  },
+  "publication_date": null,
+  "coverage_note": "Three official team-verified screenshot-only, 15-step, 361-task rows. The workbook does not state run counts; these remain explicitly unknown. No OSWorld 2.0 or 360/369-task rows are combined.",
+  "rows": [
+    {
+      "locator": "Eval Results!A2:L2",
+      "model_label": "computer-use-preview",
+      "version": "OSWorld-Verified, 361-task or manually adjusted 369-task protocols separate",
+      "protocol": {
+        "modality": "screenshot-only",
+        "framework": "OSWorld-Verified official evaluation",
+        "max_steps": 15,
+        "runs": {
+          "unknown_reason": "Run count is not a column in the workbook; Multiple rollout is No"
+        },
+        "task_total": 361,
+        "verification": "OSWorld team-verified",
+        "a11y_tree": "No",
+        "coding_actions": "No",
+        "multiple_rollout": "No"
+      },
+      "evaluator": "OSWorld team-verified or self-reported, labeled separately",
+      "publication_date": "2025-07-28",
+      "citation": {
+        "url": "https://osworld-v1.xlang.ai/static/data/osworld_verified_results.xlsx",
+        "locator": "Eval Results!A2:L2",
+        "content_hash": "cf6b4b67eed566ddcd5a8b7ad2d89013157978dad0eea76ea12d2377471efc09"
+      },
+      "metrics": [
+        {
+          "key": "task_success_rate",
+          "value": 26,
+          "unit": "percent",
+          "direction": "higher",
+          "denominator": 361
+        }
+      ],
+      "source_data": {
+        "Model": "computer-use-preview",
+        "Institution": "OpenAI",
+        "PaperLink": "https://openai.com/index/computer-using-agent/",
+        "PaperAuthors": "OpenAI, '25",
+        "Approach type": "Specialized model",
+        "Max steps": 15,
+        "Additional a11y tree used": "No",
+        "Additional coding-based action": "No",
+        "Multiple rollout": "No",
+        "Date": "2025-07-28 00:00:00",
+        "Success rate": 26,
+        "Success/Total": "93.92/361",
+        "chrome": "16.96/46",
+        "gimp": "9.00/26",
+        "libreoffice_calc": "5.00/47",
+        "libreoffice_impress": "11.96/47",
+        "libreoffice_writer": "7.00/23",
+        "multi_apps": "10.00/93",
+        "os": "11.00/24",
+        "thunderbird": "7.00/15",
+        "vlc": "5.00/17",
+        "vs_code": "11.00/23"
+      }
+    },
+    {
+      "locator": "Eval Results!A8:L8",
+      "model_label": "o3",
+      "version": "OSWorld-Verified, 361-task or manually adjusted 369-task protocols separate",
+      "protocol": {
+        "modality": "screenshot-only",
+        "framework": "OSWorld-Verified official evaluation",
+        "max_steps": 15,
+        "runs": {
+          "unknown_reason": "Run count is not a column in the workbook; Multiple rollout is No"
+        },
+        "task_total": 361,
+        "verification": "OSWorld team-verified",
+        "a11y_tree": "No",
+        "coding_actions": "No",
+        "multiple_rollout": "No"
+      },
+      "evaluator": "OSWorld team-verified or self-reported, labeled separately",
+      "publication_date": "2025-07-28",
+      "citation": {
+        "url": "https://osworld-v1.xlang.ai/static/data/osworld_verified_results.xlsx",
+        "locator": "Eval Results!A8:L8",
+        "content_hash": "cf6b4b67eed566ddcd5a8b7ad2d89013157978dad0eea76ea12d2377471efc09"
+      },
+      "metrics": [
+        {
+          "key": "task_success_rate",
+          "value": 9.1,
+          "unit": "percent",
+          "direction": "higher",
+          "denominator": 361
+        }
+      ],
+      "source_data": {
+        "Model": "o3",
+        "Institution": "OpenAI",
+        "PaperLink": "https://openai.com/index/introducing-o3-and-o4-mini/",
+        "PaperAuthors": "OpenAI, '25",
+        "Approach type": "General model",
+        "Max steps": 15,
+        "Additional a11y tree used": "No",
+        "Additional coding-based action": "No",
+        "Multiple rollout": "No",
+        "Date": "2025-07-28 00:00:00",
+        "Success rate": 9.1,
+        "Success/Total": "32.85/361",
+        "chrome": "3.00/46",
+        "gimp": "3.00/26",
+        "libreoffice_calc": "0.00/47",
+        "libreoffice_impress": "0.00/47",
+        "libreoffice_writer": "1.00/23",
+        "multi_apps": "11.00/93",
+        "os": "9.00/24",
+        "thunderbird": "1.00/15",
+        "vlc": "1.85/17",
+        "vs_code": "3.00/23"
+      }
+    },
+    {
+      "locator": "Eval Results!A11:L11",
+      "model_label": "claude-3-7-sonnet-20250219",
+      "version": "OSWorld-Verified, 361-task or manually adjusted 369-task protocols separate",
+      "protocol": {
+        "modality": "screenshot-only",
+        "framework": "OSWorld-Verified official evaluation",
+        "max_steps": 15,
+        "runs": {
+          "unknown_reason": "Run count is not a column in the workbook; Multiple rollout is No"
+        },
+        "task_total": 361,
+        "verification": "OSWorld team-verified",
+        "a11y_tree": "No",
+        "coding_actions": "No",
+        "multiple_rollout": "No"
+      },
+      "evaluator": "OSWorld team-verified or self-reported, labeled separately",
+      "publication_date": "2025-07-28",
+      "citation": {
+        "url": "https://osworld-v1.xlang.ai/static/data/osworld_verified_results.xlsx",
+        "locator": "Eval Results!A11:L11",
+        "content_hash": "cf6b4b67eed566ddcd5a8b7ad2d89013157978dad0eea76ea12d2377471efc09"
+      },
+      "metrics": [
+        {
+          "key": "task_success_rate",
+          "value": 27.1,
+          "unit": "percent",
+          "direction": "higher",
+          "denominator": 361
+        }
+      ],
+      "source_data": {
+        "Model": "claude-3-7-sonnet-20250219",
+        "Institution": "Anthropic",
+        "PaperLink": "https://www.anthropic.com/news/claude-3-7-sonnet",
+        "PaperAuthors": "Anthropic, '25",
+        "Approach type": "General model",
+        "Max steps": 15,
+        "Additional a11y tree used": "No",
+        "Additional coding-based action": "No",
+        "Multiple rollout": "No",
+        "Date": "2025-07-28 00:00:00",
+        "Success rate": 27.1,
+        "Success/Total": "97.92/361",
+        "chrome": "18.96/46",
+        "gimp": "9.00/26",
+        "libreoffice_calc": "4.00/47",
+        "libreoffice_impress": "13.96/47",
+        "libreoffice_writer": "9.00/23",
+        "multi_apps": "10.00/93",
+        "os": "12.00/24",
+        "thunderbird": "5.00/15",
+        "vlc": "6.00/17",
+        "vs_code": "10.00/23"
+      }
+    }
+  ]
+}

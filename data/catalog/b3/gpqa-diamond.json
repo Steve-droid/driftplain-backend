@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "source_id": "gpqa-diamond",
+  "registry_hash": "3ada3d03d3bc94518d9369e9279b2ea036ae1db6277ee193d10263e3c76f9495",
+  "review": {
+    "reviewer": "Codex source transcription; pending Steve B3 delivery review",
+    "reviewed_at": "2026-09-23",
+    "note": "Bounded source rows inspected against the cited authoritative artifacts; no evaluation or LLM extraction executed."
+  },
+  "publication_date": "2023-11-20",
+  "coverage_note": "Three author-reported Diamond baselines from Table 5. The B1 CSV is question-level GPT-4 evidence, not a three-model result table. No questions or answers are redistributed.",
+  "rows": [
+    {
+      "locator": "Table5/Diamond/Few-Shot-CoT/Llama-2-70B-chat",
+      "model_label": "Llama-2-70B-chat",
+      "version": "Diamond split at 56686c06f5e19865c153de0fdb11be3890014df7",
+      "protocol": {
+        "split": "Diamond",
+        "shots": {
+          "unknown_reason": "Table 5 specifies few-shot; exact count is not stated in the result table"
+        },
+        "prompt": "arXiv:2311.12022v1 Appendix A.3.1 few-shot chain-of-thought",
+        "tools": false
+      },
+      "evaluator": "GPQA authors",
+      "publication_date": "2023-11-20",
+      "citation": {
+        "url": "https://arxiv.org/html/2311.12022v1#S4.T5",
+        "locator": "Table 5, Diamond Set, Few-Shot CoT / Llama-2-70B-chat",
+        "content_hash": "e349f5e1e381fef78420f469c411d108fdce43e4881846dc93650b3a1f836d96"
+      },
+      "metrics": [
+        {
+          "key": "accuracy",
+          "value": 28.1,
+          "unit": "percent",
+          "direction": "higher",
+          "denominator": 198
+        }
+      ]
+    },
+    {
+      "locator": "Table5/Diamond/Few-Shot-CoT/GPT-3.5-turbo-16k",
+      "model_label": "GPT-3.5-turbo-16k",
+      "version": "Diamond split at 56686c06f5e19865c153de0fdb11be3890014df7",
+      "protocol": {
+        "split": "Diamond",
+        "shots": {
+          "unknown_reason": "Table 5 specifies few-shot; exact count is not stated in the result table"
+        },
+        "prompt": "arXiv:2311.12022v1 Appendix A.3.1 few-shot chain-of-thought",
+        "tools": false
+      },
+      "evaluator": "GPQA authors",
+      "publication_date": "2023-11-20",
+      "citation": {
+        "url": "https://arxiv.org/html/2311.12022v1#S4.T5",
+        "locator": "Table 5, Diamond Set, Few-Shot CoT / GPT-3.5-turbo-16k",
+        "content_hash": "e349f5e1e381fef78420f469c411d108fdce43e4881846dc93650b3a1f836d96"
+      },
+      "metrics": [
+        {
+          "key": "accuracy",
+          "value": 29.6,
+          "unit": "percent",
+          "direction": "higher",
+          "denominator": 198
+        }
+      ]
+    },
+    {
+      "locator": "Table5/Diamond/Few-Shot-CoT/GPT-4",
+      "model_label": "GPT-4",
+      "version": "Diamond split at 56686c06f5e19865c153de0fdb11be3890014df7",
+      "protocol": {
+        "split": "Diamond",
+        "shots": {
+          "unknown_reason": "Table 5 specifies few-shot; exact count is not stated in the result table"
+        },
+        "prompt": "arXiv:2311.12022v1 Appendix A.3.1 few-shot chain-of-thought",
+        "tools": false
+      },
+      "evaluator": "GPQA authors",
+      "publication_date": "2023-11-20",
+      "citation": {
+        "url": "https://arxiv.org/html/2311.12022v1#S4.T5",
+        "locator": "Table 5, Diamond Set, Few-Shot CoT / GPT-4",
+        "content_hash": "e349f5e1e381fef78420f469c411d108fdce43e4881846dc93650b3a1f836d96"
+      },
+      "metrics": [
+        {
+          "key": "accuracy",
+          "value": 38.8,
+          "unit": "percent",
+          "direction": "higher",
+          "denominator": 198
+        }
+      ]
+    }
+  ]
+}

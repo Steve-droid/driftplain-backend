@@ -1,0 +1,350 @@
+{
+  "schema_version": 1,
+  "source_id": "aime-2025",
+  "registry_hash": "3ada3d03d3bc94518d9369e9279b2ea036ae1db6277ee193d10263e3c76f9495",
+  "review": {
+    "reviewer": "Codex source transcription; pending Steve B3 delivery review",
+    "reviewed_at": "2026-09-23",
+    "note": "Bounded source rows inspected against the cited authoritative artifacts; no evaluation or LLM extraction executed."
+  },
+  "publication_date": "2025-08-05",
+  "coverage_note": "Two canonical source model labels across tools and effort settings. Effort settings never count as extra models; the three-model coverage target remains unmet.",
+  "rows": [
+    {
+      "locator": "Table3/AIME2025/gpt-oss-120b/False/low",
+      "model_label": "gpt-oss-120b",
+      "version": "AIME 2025, no-tools and tools protocols separate",
+      "protocol": {
+        "year": 2025,
+        "tools": false,
+        "samples": {
+          "unknown_reason": "Sampling count not reported in Table 3"
+        },
+        "effort": "low"
+      },
+      "evaluator": "OpenAI",
+      "publication_date": "2025-08-05",
+      "citation": {
+        "url": "https://deploymentsafety.openai.com/gpt-oss/a2",
+        "locator": "Table3/AIME2025/gpt-oss-120b/False/low",
+        "content_hash": "4b3566fa69f7959af94781a1a9fe676de9283e38149f6f7e22ba03a33e13f559"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 50.4,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ]
+    },
+    {
+      "locator": "Table3/AIME2025/gpt-oss-120b/False/medium",
+      "model_label": "gpt-oss-120b",
+      "version": "AIME 2025, no-tools and tools protocols separate",
+      "protocol": {
+        "year": 2025,
+        "tools": false,
+        "samples": {
+          "unknown_reason": "Sampling count not reported in Table 3"
+        },
+        "effort": "medium"
+      },
+      "evaluator": "OpenAI",
+      "publication_date": "2025-08-05",
+      "citation": {
+        "url": "https://deploymentsafety.openai.com/gpt-oss/a2",
+        "locator": "Table3/AIME2025/gpt-oss-120b/False/medium",
+        "content_hash": "4b3566fa69f7959af94781a1a9fe676de9283e38149f6f7e22ba03a33e13f559"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 80.0,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ]
+    },
+    {
+      "locator": "Table3/AIME2025/gpt-oss-120b/False/high",
+      "model_label": "gpt-oss-120b",
+      "version": "AIME 2025, no-tools and tools protocols separate",
+      "protocol": {
+        "year": 2025,
+        "tools": false,
+        "samples": {
+          "unknown_reason": "Sampling count not reported in Table 3"
+        },
+        "effort": "high"
+      },
+      "evaluator": "OpenAI",
+      "publication_date": "2025-08-05",
+      "citation": {
+        "url": "https://deploymentsafety.openai.com/gpt-oss/a2",
+        "locator": "Table3/AIME2025/gpt-oss-120b/False/high",
+        "content_hash": "4b3566fa69f7959af94781a1a9fe676de9283e38149f6f7e22ba03a33e13f559"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 92.5,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ]
+    },
+    {
+      "locator": "Table3/AIME2025/gpt-oss-120b/True/low",
+      "model_label": "gpt-oss-120b",
+      "version": "AIME 2025, no-tools and tools protocols separate",
+      "protocol": {
+        "year": 2025,
+        "tools": true,
+        "samples": {
+          "unknown_reason": "Sampling count not reported in Table 3"
+        },
+        "effort": "low"
+      },
+      "evaluator": "OpenAI",
+      "publication_date": "2025-08-05",
+      "citation": {
+        "url": "https://deploymentsafety.openai.com/gpt-oss/a2",
+        "locator": "Table3/AIME2025/gpt-oss-120b/True/low",
+        "content_hash": "4b3566fa69f7959af94781a1a9fe676de9283e38149f6f7e22ba03a33e13f559"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 72.9,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ]
+    },
+    {
+      "locator": "Table3/AIME2025/gpt-oss-120b/True/medium",
+      "model_label": "gpt-oss-120b",
+      "version": "AIME 2025, no-tools and tools protocols separate",
+      "protocol": {
+        "year": 2025,
+        "tools": true,
+        "samples": {
+          "unknown_reason": "Sampling count not reported in Table 3"
+        },
+        "effort": "medium"
+      },
+      "evaluator": "OpenAI",
+      "publication_date": "2025-08-05",
+      "citation": {
+        "url": "https://deploymentsafety.openai.com/gpt-oss/a2",
+        "locator": "Table3/AIME2025/gpt-oss-120b/True/medium",
+        "content_hash": "4b3566fa69f7959af94781a1a9fe676de9283e38149f6f7e22ba03a33e13f559"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 91.6,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ]
+    },
+    {
+      "locator": "Table3/AIME2025/gpt-oss-120b/True/high",
+      "model_label": "gpt-oss-120b",
+      "version": "AIME 2025, no-tools and tools protocols separate",
+      "protocol": {
+        "year": 2025,
+        "tools": true,
+        "samples": {
+          "unknown_reason": "Sampling count not reported in Table 3"
+        },
+        "effort": "high"
+      },
+      "evaluator": "OpenAI",
+      "publication_date": "2025-08-05",
+      "citation": {
+        "url": "https://deploymentsafety.openai.com/gpt-oss/a2",
+        "locator": "Table3/AIME2025/gpt-oss-120b/True/high",
+        "content_hash": "4b3566fa69f7959af94781a1a9fe676de9283e38149f6f7e22ba03a33e13f559"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 97.9,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ]
+    },
+    {
+      "locator": "Table3/AIME2025/gpt-oss-20b/False/low",
+      "model_label": "gpt-oss-20b",
+      "version": "AIME 2025, no-tools and tools protocols separate",
+      "protocol": {
+        "year": 2025,
+        "tools": false,
+        "samples": {
+          "unknown_reason": "Sampling count not reported in Table 3"
+        },
+        "effort": "low"
+      },
+      "evaluator": "OpenAI",
+      "publication_date": "2025-08-05",
+      "citation": {
+        "url": "https://deploymentsafety.openai.com/gpt-oss/a2",
+        "locator": "Table3/AIME2025/gpt-oss-20b/False/low",
+        "content_hash": "4b3566fa69f7959af94781a1a9fe676de9283e38149f6f7e22ba03a33e13f559"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 37.1,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ]
+    },
+    {
+      "locator": "Table3/AIME2025/gpt-oss-20b/False/medium",
+      "model_label": "gpt-oss-20b",
+      "version": "AIME 2025, no-tools and tools protocols separate",
+      "protocol": {
+        "year": 2025,
+        "tools": false,
+        "samples": {
+          "unknown_reason": "Sampling count not reported in Table 3"
+        },
+        "effort": "medium"
+      },
+      "evaluator": "OpenAI",
+      "publication_date": "2025-08-05",
+      "citation": {
+        "url": "https://deploymentsafety.openai.com/gpt-oss/a2",
+        "locator": "Table3/AIME2025/gpt-oss-20b/False/medium",
+        "content_hash": "4b3566fa69f7959af94781a1a9fe676de9283e38149f6f7e22ba03a33e13f559"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 72.1,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ]
+    },
+    {
+      "locator": "Table3/AIME2025/gpt-oss-20b/False/high",
+      "model_label": "gpt-oss-20b",
+      "version": "AIME 2025, no-tools and tools protocols separate",
+      "protocol": {
+        "year": 2025,
+        "tools": false,
+        "samples": {
+          "unknown_reason": "Sampling count not reported in Table 3"
+        },
+        "effort": "high"
+      },
+      "evaluator": "OpenAI",
+      "publication_date": "2025-08-05",
+      "citation": {
+        "url": "https://deploymentsafety.openai.com/gpt-oss/a2",
+        "locator": "Table3/AIME2025/gpt-oss-20b/False/high",
+        "content_hash": "4b3566fa69f7959af94781a1a9fe676de9283e38149f6f7e22ba03a33e13f559"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 91.7,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ]
+    },
+    {
+      "locator": "Table3/AIME2025/gpt-oss-20b/True/low",
+      "model_label": "gpt-oss-20b",
+      "version": "AIME 2025, no-tools and tools protocols separate",
+      "protocol": {
+        "year": 2025,
+        "tools": true,
+        "samples": {
+          "unknown_reason": "Sampling count not reported in Table 3"
+        },
+        "effort": "low"
+      },
+      "evaluator": "OpenAI",
+      "publication_date": "2025-08-05",
+      "citation": {
+        "url": "https://deploymentsafety.openai.com/gpt-oss/a2",
+        "locator": "Table3/AIME2025/gpt-oss-20b/True/low",
+        "content_hash": "4b3566fa69f7959af94781a1a9fe676de9283e38149f6f7e22ba03a33e13f559"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 57.5,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ]
+    },
+    {
+      "locator": "Table3/AIME2025/gpt-oss-20b/True/medium",
+      "model_label": "gpt-oss-20b",
+      "version": "AIME 2025, no-tools and tools protocols separate",
+      "protocol": {
+        "year": 2025,
+        "tools": true,
+        "samples": {
+          "unknown_reason": "Sampling count not reported in Table 3"
+        },
+        "effort": "medium"
+      },
+      "evaluator": "OpenAI",
+      "publication_date": "2025-08-05",
+      "citation": {
+        "url": "https://deploymentsafety.openai.com/gpt-oss/a2",
+        "locator": "Table3/AIME2025/gpt-oss-20b/True/medium",
+        "content_hash": "4b3566fa69f7959af94781a1a9fe676de9283e38149f6f7e22ba03a33e13f559"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 90.4,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ]
+    },
+    {
+      "locator": "Table3/AIME2025/gpt-oss-20b/True/high",
+      "model_label": "gpt-oss-20b",
+      "version": "AIME 2025, no-tools and tools protocols separate",
+      "protocol": {
+        "year": 2025,
+        "tools": true,
+        "samples": {
+          "unknown_reason": "Sampling count not reported in Table 3"
+        },
+        "effort": "high"
+      },
+      "evaluator": "OpenAI",
+      "publication_date": "2025-08-05",
+      "citation": {
+        "url": "https://deploymentsafety.openai.com/gpt-oss/a2",
+        "locator": "Table3/AIME2025/gpt-oss-20b/True/high",
+        "content_hash": "4b3566fa69f7959af94781a1a9fe676de9283e38149f6f7e22ba03a33e13f559"
+      },
+      "metrics": [
+        {
+          "key": "pass_at_1",
+          "value": 98.7,
+          "unit": "percent",
+          "direction": "higher"
+        }
+      ]
+    }
+  ]
+}

@@ -17,6 +17,7 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
+    LargeBinary,
     Boolean,
     CheckConstraint,
     Float,
@@ -329,6 +330,7 @@ class CatalogSource(Base):
 class CatalogSourceSnapshot(Base):
     __tablename__ = "catalog_source_snapshot"
     __table_args__ = (
+        UniqueConstraint("id", "source_id", name="uq_catalog_snapshot_id_source"),
         UniqueConstraint(
             "source_id", "content_hash", name="uq_catalog_source_snapshot_hash"
         ),
@@ -529,6 +531,10 @@ class CatalogObservation(Base):
         Index("ix_catalog_observation_protocol", "protocol_id"),
         Index("ix_catalog_observation_evaluator", "evaluator_id"),
         Index("ix_catalog_observation_snapshot", "source_snapshot_id"),
+        Index(
+            "ix_catalog_observation_label_trgm", "source_model_label",
+            postgresql_using="gin", postgresql_ops={"source_model_label": "gin_trgm_ops"},
+        ),
         Index("ix_catalog_observation_model", "catalog_model_id"),
         Index("ix_catalog_observation_deployment", "provider_deployment_id"),
         Index("ix_catalog_observation_legacy_result", "legacy_benchmark_result_id"),
@@ -915,3 +921,51 @@ class LlmUsage(Base):
     # Replica-shared tally for the hard hourly token cap; hour_start is the PK.
     hour_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
     tokens_used: Mapped[int] = mapped_column(BigInteger, server_default="0")
+
+
+class CatalogImportState(Base):
+    __tablename__ = "catalog_import_state"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["active_snapshot_id", "source_id"],
+            ["catalog_source_snapshot.id", "catalog_source_snapshot.source_id"],
+            name="fk_catalog_active_snapshot_source",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("failure_count >= 0", name="ck_catalog_import_failure_count"),
+    )
+    source_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_source.id", ondelete="RESTRICT"), primary_key=True
+    )
+    active_snapshot_id: Mapped[Optional[int]] = mapped_column(Integer)
+    last_checked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_successful_check_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_promoted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    failure_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    failure_code: Mapped[Optional[str]] = mapped_column(String(64))
+    etag: Mapped[Optional[str]] = mapped_column(String(512))
+    last_modified: Mapped[Optional[str]] = mapped_column(String(512))
+    checked_content_hash: Mapped[Optional[str]] = mapped_column(String(64))
+
+
+class CatalogSourcePayload(Base):
+    __tablename__ = "catalog_source_payload"
+    __table_args__ = (
+        CheckConstraint(
+            "octet_length(raw_bytes) BETWEEN 1 AND 8000000", name="ck_catalog_payload_size"
+        ),
+    )
+    snapshot_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_source_snapshot.id", ondelete="RESTRICT"), primary_key=True
+    )
+    raw_bytes: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+
+class CatalogSnapshotLifecycle(Base):
+    __tablename__ = "catalog_snapshot_lifecycle"
+    snapshot_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_source_snapshot.id", ondelete="RESTRICT"), primary_key=True
+    )
+    activated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    superseded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    hold_reason: Mapped[Optional[str]] = mapped_column(Text)

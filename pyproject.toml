@@ -82,3 +82,7 @@ markers = [
 # from scanning tests/fixtures. Gate thresholds (severity/confidence) are passed as CLI
 # flags in the Jenkinsfile, not pinned here, so they stay visible at the gate.
 exclude_dirs = ["tests", ".venv", "migrations"]
+
+# Reviewed B3 inputs travel with the importer, including installed wheels.
+[tool.hatch.build.targets.wheel.force-include]
+"data/catalog/b3" = "data/catalog/b3"

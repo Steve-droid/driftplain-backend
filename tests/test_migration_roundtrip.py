@@ -53,6 +53,9 @@ EXPECTED_TABLES = {
     "catalog_evaluator",
     "catalog_source",
     "catalog_source_snapshot",
+    "catalog_import_state",
+    "catalog_source_payload",
+    "catalog_snapshot_lifecycle",
     "catalog_model",
     "catalog_provider",
     "catalog_provider_deployment",
@@ -405,5 +408,51 @@ def test_google_migration_preserves_users_and_projects(migration_db):
             assert not verify_password(hashes[901], "!")
             assert conn.execute(text("SELECT count(*) FROM project WHERE id IN (900,901)")).scalar() == 2
         command.upgrade(cfg, "head")
+    finally:
+        engine.dispose()
+
+
+def test_b3_empty_roundtrip_and_populated_downgrade_guard(migration_db):
+    from alembic import command
+    from app.catalog.imports.pipeline import import_bytes
+
+    cfg, test_url = migration_db
+    command.upgrade(cfg, "b5c6d7e8f9a0")
+    engine = create_engine(test_url)
+    try:
+        with engine.connect() as conn:
+            runtime_before = conn.execute(
+                text(
+                    "SELECT id, model_id, enabled FROM agent_runtime_config ORDER BY id"
+                )
+            ).all()
+        command.upgrade(cfg, "head")
+        command.downgrade(cfg, "b5c6d7e8f9a0")
+        assert "catalog_import_state" not in inspect(engine).get_table_names()
+        command.upgrade(cfg, "head")
+        raw = (ROOT / "data/catalog/b3/mmlu-pro.json").read_bytes()
+        assert import_bytes(engine, "mmlu-pro", raw).status == "promoted"
+        with pytest.raises(RuntimeError, match="preserve imported evidence"):
+            command.downgrade(cfg, "b5c6d7e8f9a0")
+        # Operational state is mutable; deleting it must not let downgrade erase evidence.
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM catalog_import_state"))
+        with pytest.raises(RuntimeError, match="preserve imported evidence"):
+            command.downgrade(cfg, "b5c6d7e8f9a0")
+        with engine.connect() as conn:
+            assert (
+                conn.execute(
+                    text("SELECT count(*) FROM catalog_source_payload")
+                ).scalar()
+                == 1
+            )
+            assert (
+                conn.execute(
+                    text(
+                        "SELECT id, model_id, enabled FROM agent_runtime_config ORDER BY id"
+                    )
+                ).all()
+                == runtime_before
+            )
     finally:
         engine.dispose()

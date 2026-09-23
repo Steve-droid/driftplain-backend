@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "source_id": "hle",
+  "registry_hash": "3ada3d03d3bc94518d9369e9279b2ea036ae1db6277ee193d10263e3c76f9495",
+  "review": {
+    "reviewer": "Codex source transcription; pending Steve B3 delivery review",
+    "reviewed_at": "2026-09-23",
+    "note": "Bounded source rows inspected against the cited authoritative artifacts; no evaluation or LLM extraction executed."
+  },
+  "publication_date": null,
+  "coverage_note": "Four rows from the official HLE website, also linked to the B1 CAIS dashboard. Final 2,500-question HLE only; not HLE-Rolling or HLE-Diamond. The starred text-only row is separate. Result publication dates and tool settings are not stated.",
+  "rows": [
+    {
+      "locator": "Quantitative Results/Gemini 3 Pro",
+      "model_label": "Gemini 3 Pro",
+      "version": "Final 2,500-question HLE; text and multimodal protocols separate",
+      "protocol": {
+        "dataset": "HLE final 2500",
+        "modality": "multimodal",
+        "judge": "o3-mini",
+        "tools": {
+          "unknown_reason": "Tool policy not explicitly stated in the cited table"
+        }
+      },
+      "evaluator": "Center for AI Safety dashboard and named model publishers",
+      "publication_date": null,
+      "citation": {
+        "url": "https://lastexam.ai/",
+        "locator": "Quantitative Results, April 3rd 2025 dataset / Gemini 3 Pro",
+        "content_hash": "d16013d667d3e58c7f15af09e88f5dc5bd6d24d853b52a6e3d3c2fa0f61e970c"
+      },
+      "metrics": [
+        {
+          "key": "accuracy",
+          "value": 38.3,
+          "unit": "percent",
+          "direction": "higher"
+        },
+        {
+          "key": "calibration_error",
+          "value": 57.2,
+          "unit": "percent",
+          "direction": "lower"
+        }
+      ]
+    },
+    {
+      "locator": "Quantitative Results/GPT-5",
+      "model_label": "GPT-5",
+      "version": "Final 2,500-question HLE; text and multimodal protocols separate",
+      "protocol": {
+        "dataset": "HLE final 2500",
+        "modality": "multimodal",
+        "judge": "o3-mini",
+        "tools": {
+          "unknown_reason": "Tool policy not explicitly stated in the cited table"
+        }
+      },
+      "evaluator": "Center for AI Safety dashboard and named model publishers",
+      "publication_date": null,
+      "citation": {
+        "url": "https://lastexam.ai/",
+        "locator": "Quantitative Results, April 3rd 2025 dataset / GPT-5",
+        "content_hash": "d16013d667d3e58c7f15af09e88f5dc5bd6d24d853b52a6e3d3c2fa0f61e970c"
+      },
+      "metrics": [
+        {
+          "key": "accuracy",
+          "value": 25.3,
+          "unit": "percent",
+          "direction": "higher"
+        },
+        {
+          "key": "calibration_error",
+          "value": 50.0,
+          "unit": "percent",
+          "direction": "lower"
+        }
+      ]
+    },
+    {
+      "locator": "Quantitative Results/Grok 4",
+      "model_label": "Grok 4",
+      "version": "Final 2,500-question HLE; text and multimodal protocols separate",
+      "protocol": {
+        "dataset": "HLE final 2500",
+        "modality": "multimodal",
+        "judge": "o3-mini",
+        "tools": {
+          "unknown_reason": "Tool policy not explicitly stated in the cited table"
+        }
+      },
+      "evaluator": "Center for AI Safety dashboard and named model publishers",
+      "publication_date": null,
+      "citation": {
+        "url": "https://lastexam.ai/",
+        "locator": "Quantitative Results, April 3rd 2025 dataset / Grok 4",
+        "content_hash": "d16013d667d3e58c7f15af09e88f5dc5bd6d24d853b52a6e3d3c2fa0f61e970c"
+      },
+      "metrics": [
+        {
+          "key": "accuracy",
+          "value": 24.5,
+          "unit": "percent",
+          "direction": "higher"
+        },
+        {
+          "key": "calibration_error",
+          "value": 56.4,
+          "unit": "percent",
+          "direction": "lower"
+        }
+      ]
+    },
+    {
+      "locator": "Quantitative Results/DeepSeek-R1*",
+      "model_label": "DeepSeek-R1*",
+      "version": "Final 2,500-question HLE; text and multimodal protocols separate",
+      "protocol": {
+        "dataset": "HLE final 2500",
+        "modality": "text-only subset",
+        "judge": "o3-mini",
+        "tools": {
+          "unknown_reason": "Tool policy not explicitly stated in the cited table"
+        }
+      },
+      "evaluator": "Center for AI Safety dashboard and named model publishers",
+      "publication_date": null,
+      "citation": {
+        "url": "https://lastexam.ai/",
+        "locator": "Quantitative Results, April 3rd 2025 dataset / DeepSeek-R1*",
+        "content_hash": "d16013d667d3e58c7f15af09e88f5dc5bd6d24d853b52a6e3d3c2fa0f61e970c"
+      },
+      "metrics": [
+        {
+          "key": "accuracy",
+          "value": 8.5,
+          "unit": "percent",
+          "direction": "higher"
+        },
+        {
+          "key": "calibration_error",
+          "value": 73.0,
+          "unit": "percent",
+          "direction": "lower"
+        }
+      ]
+    }
+  ]
+}
