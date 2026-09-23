@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from app import __version__
 from app.api import (
     auth,
+    execution,
     benchmarks,
     catalog,
     chat,
@@ -52,6 +53,7 @@ app.add_middleware(
 app.add_middleware(MetricsMiddleware)
 
 app.include_router(auth.router)
+app.include_router(execution.router)
 app.include_router(benchmarks.router)
 app.include_router(catalog.router)
 app.include_router(recommend.router)

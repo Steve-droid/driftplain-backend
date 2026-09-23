@@ -29,6 +29,8 @@ from app.auth.deps import require_owner, require_real_project
 from app.ci.tokens import hash_token, mint_token
 from app.config import get_settings
 from app.models import (
+    ExecutionRevision,
+    CatalogModel,
     CiFinding,
     CiRun,
     JenkinsConnection,
@@ -280,6 +282,8 @@ def _require_connected(db: Session, project_id: int, current_user: User) -> Jenk
 
 
 def _selected_runtime_config(db: Session, project: Project):
+    if project.execution_revision_id:
+        raise HTTPException(422, 'Explicit selections require the versioned execution contract')
     if project.selected_option_id is None:
         raise runtime_config_error()
     option = db.get(RecommendationOption, project.selected_option_id)
@@ -341,6 +345,9 @@ def _setup_out(project: Project, token_plain: str | None, db: Session) -> CiSetu
 def ci_setup(db: Session, project_id: int, current_user: User) -> CiSetupOut:
     conn = _require_connected(db, project_id, current_user)
     project = db.get(Project, project_id)
+    db.refresh(project, with_for_update=True)
+    if project.execution_revision_id:
+        raise HTTPException(422, 'Explicit projects use /execution/v1 token endpoints')
 
     # Mint-once: issue a token only if none exists yet (we keep only the hash, so a
     # previously-minted token is never re-shown here — use rotate_ci_token to recover
@@ -361,6 +368,9 @@ def rotate_ci_token(db: Session, project_id: int, current_user: User) -> CiSetup
     an existing Jenkins connection."""
     conn = _require_connected(db, project_id, current_user)
     project = db.get(Project, project_id)
+    db.refresh(project, with_for_update=True)
+    if project.execution_revision_id:
+        raise HTTPException(422, 'Explicit projects use /execution/v1 token endpoints')
     token_plain = mint_token()
     conn.ci_token_hash = hash_token(token_plain)
     db.commit()
@@ -403,6 +413,9 @@ def _resolve_model_id(db: Session, project: Project) -> int | None:
 
 
 def ingest_run(db: Session, project: Project, payload: CiRunIngest) -> CiRunOut:
+    # Serialize legacy-to-explicit transitions and concurrent duplicate reports.
+    # An explicit old revision is still valid after re-pick or runtime disable.
+    db.refresh(project, with_for_update=True)
     # Reject a re-POSTed build for this project (409) — runs are not idempotent yet.
     existing = db.scalar(
         select(CiRun.id).where(
@@ -421,7 +434,19 @@ def ingest_run(db: Session, project: Project, payload: CiRunIngest) -> CiRunOut:
     # split input/output prices. Deterministic, no LLM, zero tokens. An unpriced model
     # leaves the trio NULL (compute_savings returns None) without failing the ingest.
     # cache_read_tokens is deliberately NOT in this call (HLD §8).
-    selected_model_id = _resolve_model_id(db, project)
+    revision = None
+    if payload.execution_revision_id is not None:
+        revision = db.get(ExecutionRevision, payload.execution_revision_id)
+        if revision is None or revision.project_id != project.id:
+            raise HTTPException(422, 'Execution revision does not belong to this project')
+        if payload.model != revision.configuration['model']['providerModelId']:
+            raise HTTPException(422, 'Reported model does not match the executed configuration')
+        model = db.get(CatalogModel, revision.configuration['catalogModelId'])
+        selected_model_id = model.legacy_model_id
+    elif project.execution_revision_id:
+        raise HTTPException(422, 'Explicit projects require executionRevisionId on every run')
+    else:
+        selected_model_id = _resolve_model_id(db, project)
     actual_cost, baseline_cost, savings = compute_savings(
         payload.tokens_in,
         payload.tokens_out,
@@ -429,11 +454,15 @@ def ingest_run(db: Session, project: Project, payload: CiRunIngest) -> CiRunOut:
         price_for(db, project.baseline_model_id),
     )
 
+    if revision:
+        actual_cost = baseline_cost = savings = None  # B15 owns selected-model billing.
+
     run = CiRun(
         project_id=project.id,
         jenkins_build_id=payload.jenkins_build_id,
         model_id=selected_model_id,
-        task=project.task_type,  # the run records the project's task (one vocabulary)
+        task=revision.configuration['taskType'] if revision else project.task_type,
+        execution_revision_id=revision.id if revision else None,
         tokens_in=payload.tokens_in,
         tokens_out=payload.tokens_out,
         cache_read_tokens=payload.cache_read_tokens,
@@ -492,4 +521,5 @@ def ingest_run(db: Session, project: Project, payload: CiRunIngest) -> CiRunOut:
         gate=run.gate,
         gate_reason=run.gate_reason,
         findings_count=len(payload.findings),
+        execution_revision_id=run.execution_revision_id,
     )

@@ -27,6 +27,7 @@ TEST_DB = "modelmatch_migration_test"
 # Every table the initial migration must create (architecture.md §5 + the
 # llm_usage tally added in S2). The backlog names the starred ones explicitly.
 EXPECTED_TABLES = {
+    "execution_runtime", "model_selection", "execution_revision",
     "user",
     "google_login_nonce",
     "model",
@@ -454,5 +455,30 @@ def test_b3_empty_roundtrip_and_populated_downgrade_guard(migration_db):
                 ).all()
                 == runtime_before
             )
+    finally:
+        engine.dispose()
+
+
+def test_b6_populated_legacy_upgrade_preserves_tokens_and_history(migration_db):
+    from alembic import command
+    cfg, url = migration_db
+    command.upgrade(cfg, 'c6d7e8f9a0b1')
+    engine = create_engine(url)
+    try:
+        with engine.begin() as conn:
+            uid = conn.scalar(text("INSERT INTO public.user (email,password_hash) VALUES ('b6-upgrade@example.com','placeholder') RETURNING id"))
+            pid = conn.scalar(text("INSERT INTO project (user_id,name,task_type) VALUES (:u,'Legacy','ci_review') RETURNING id"), {'u':uid})
+            conn.execute(text("INSERT INTO jenkins_connection (project_id,ci_token_hash) VALUES (:p,:h)"), {'p':pid,'h':'a'*64})
+            conn.execute(text("INSERT INTO ci_run (project_id,jenkins_build_id,task) VALUES (:p,'old-build','ci_review')"), {'p':pid})
+        command.upgrade(cfg,'head')
+        with engine.connect() as conn:
+            assert conn.scalar(text('SELECT ci_token_hash FROM jenkins_connection WHERE project_id=:p'),{'p':pid})=='a'*64
+            assert conn.scalar(text('SELECT execution_revision_id FROM project WHERE id=:p'),{'p':pid}) is None
+            assert conn.scalar(text('SELECT count(*) FROM ci_run WHERE project_id=:p'),{'p':pid})==1
+            assert conn.scalar(text('SELECT count(*) FROM execution_runtime'))==0
+        command.downgrade(cfg,'c6d7e8f9a0b1')
+        command.upgrade(cfg,'head')
+        with engine.connect() as conn:
+            assert conn.scalar(text('SELECT ci_token_hash FROM jenkins_connection WHERE project_id=:p'),{'p':pid})=='a'*64
     finally:
         engine.dispose()

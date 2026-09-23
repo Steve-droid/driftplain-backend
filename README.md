@@ -119,3 +119,12 @@ operator's database-write action. See [B3 familiar sources](data/catalog/b3/READ
 [B4 independent/CI sources](data/catalog/b4/README.md) for the 19-family registry, exact
 versions, supported fetch modes, honest coverage gaps and immutable-history contracts.
 No importer runs on server startup and publication does not seed or deploy the service.
+
+### Explicit selections (B6)
+
+The additive [`/execution/v1` contract](app/selections/CONTRACT.md) supports exact source
+choices, task/profile eligibility, benchmark policy snapshots, owner-scoped projects and
+immutable execution revisions. New explicit projects have no comparison baseline. Legacy
+projects/agents retain their existing contract. The new runtime set starts empty pending
+exact task/profile verification; imported scores never enable execution. Migration head is
+`d7e8f9a0b1c2`. This release does not enable a provider, migrate production or deploy an agent.

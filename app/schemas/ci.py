@@ -80,6 +80,7 @@ class CiRunIngest(AgentResult):
 
     model_config = ConfigDict(extra="forbid")
 
+    execution_revision_id: int | None = Field(default=None, gt=0)
     jenkins_build_id: str = Field(min_length=1, max_length=255, pattern=_BUILD_ID_RE)
     findings: list[IngestFinding] = Field(default_factory=list, max_length=MAX_FINDINGS)
     tokens_in: int = Field(ge=0, le=MAX_TOKENS)
@@ -110,6 +111,7 @@ class CiRunOut(CamelModel):
     gate: Optional[str] = None
     gate_reason: Optional[str] = None
     findings_count: int
+    execution_revision_id: int | None = None
 
 
 class CiSetupOut(CamelModel):
