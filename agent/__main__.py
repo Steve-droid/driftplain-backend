@@ -143,10 +143,18 @@ def main(argv: list[str] | None = None) -> int:
 
     _remap_credentials()
     try:
+        if config.execution_config:
+            from agent.review_execution import explicit_main
+            return explicit_main(config, args.diff)
         config, task, remote = _resolve(config)
         _check_image_task(task)
+        from app.review_contracts import REVIEW_PROFILES
+        if task == "review" and config.model_id in REVIEW_PROFILES:
+            raise AgentConfigError("Review integration pending; requires verified explicit configuration")
     except AgentError as exc:
         return _fail(exc.exit_code, exc.error, str(exc))
+    except Exception:
+        return _fail(EXIT_CONFIG, "config_error", "Could not load or execute configuration")
 
     diag = None
     try:
@@ -175,8 +183,8 @@ def main(argv: list[str] | None = None) -> int:
         return _fail(EXIT_CONFIG, "llm_client_error", str(exc))
     except RuntimeError as exc:  # missing SDK / missing 'llm' extra
         return _fail(EXIT_CONFIG, "llm_client_error", str(exc))
-    except Exception as exc:  # provider SDK call failure — type+message only, no diff
-        return _fail(EXIT_CONFIG, "llm_provider_error", f"{type(exc).__name__}: {exc}")
+    except Exception as exc:  # Provider errors may echo inputs; emit the class only.
+        return _fail(EXIT_CONFIG, "llm_provider_error", type(exc).__name__)
 
     result_json = json.loads(result.model_dump_json(by_alias=True))
     result_json["cacheReadTokens"] = diag.cache_read_tokens if diag is not None else None

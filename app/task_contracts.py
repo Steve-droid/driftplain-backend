@@ -11,6 +11,8 @@ from typing import Annotated, Literal
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
+from app.review_contracts import ProviderUsage
+
 TASK_CONTRACT_VERSION = 1
 LegacyTaskType = Literal["ci_review", "security_analysis"]
 LegacyAgentTask = Literal["review", "security"]
@@ -270,6 +272,8 @@ class TaskResult(Contract):
     report: Report | None = None
     artifacts: list[Artifact] = Field(default_factory=list, max_length=30)
     validations: list[ValidationCheck] = Field(default_factory=list, max_length=5)
+    # B8 additive evidence; persisted inside the already immutable JSON envelope.
+    provider_usage: ProviderUsage | None = None
 
     @model_validator(mode="after")
     def consistent_result(self):
@@ -360,6 +364,20 @@ def validate_result_configuration(
     if configuration.get("taskContractVersion") != 1:
         raise ValueError("This revision predates the task result contract")
     c = TaskConfiguration.model_validate(configuration["taskConfiguration"])
+    usage = result.provider_usage
+    if usage:
+        if result.task != "ci_review" or result.mode != "single_call":
+            raise ValueError("B8 provider usage requires the review profile")
+        if (usage.provider, usage.profile_version) != (
+            configuration["model"]["provider"], configuration["runtimeVersion"]
+        ):
+            raise ValueError("Usage differs from executed provider profile")
+        if result.execution_status == "completed" and (
+            usage.total_tokens is None or usage.generation_requests != 1
+        ):
+            raise ValueError("Completed review requires complete usage")
+        if gate == "pass" and max(usage.captured_tokens, usage.reported_total_tokens or 0) > c.resources.max_tokens:
+            raise ValueError("Usage exceeding the configured ceiling cannot pass")
     if result.patch and any(
         not any(
             f.path == path or f.path.startswith(path + "/") for path in c.write_paths

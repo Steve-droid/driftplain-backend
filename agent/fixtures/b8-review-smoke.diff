@@ -1,0 +1,7 @@
+diff --git a/review_smoke.py b/review_smoke.py
+--- a/review_smoke.py
++++ b/review_smoke.py
+@@ -1,2 +1,2 @@
+ def calculate(user_input):
+-    return int(user_input)
++    return eval(user_input)

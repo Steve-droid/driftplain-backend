@@ -155,7 +155,7 @@ def build_ci_run_payload(result_json: dict, build_id: str) -> dict:
 
 
 def fetch_execution_config(api_url: str, project_id: int, token: str, timeout: int = 15) -> dict:
-    """Explicit opt-in for future v2 runners; legacy dispatch never calls this.
+    """Explicit opt-in for v2 runners; legacy dispatch never calls this.
 
     Parsing a supported contract does not claim executable runtime support.
     """
