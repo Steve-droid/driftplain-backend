@@ -239,3 +239,11 @@ The opt-in versioned review runner and six pending provider profiles are documen
 **not live-verified or runnable**. Existing legacy execution above remains compatible.
 `MODELMATCH_EXECUTION_CONFIG=true` selects the negotiated execution endpoint without
 falling back to legacy configuration. No deployment or runtime activation is included.
+
+## B9 explicit security profiles
+
+The same opt-in now dispatches review or security by the negotiated task and checks the image.
+Six exact security integrations remain pending and blocked, including through legacy/env routing.
+The pinned OpenCode version is unchanged. See [SECURITY-SUPPORT.md](SECURITY-SUPPORT.md) for the
+matrix, required read-only/cgroup launch, configuration isolation, strict findings, normalized
+runner usage and separately approved live-verification packet. No runtime rows are activated.

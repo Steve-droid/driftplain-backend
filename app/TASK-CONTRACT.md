@@ -7,6 +7,13 @@ any pending model. See [review support](../agent/REVIEW-SUPPORT.md) for exact pr
 usage semantics, limits and the separately approved smoke plan. Earlier B7 descriptions
 of unwired CLI dispatch below describe the B7 baseline; legacy dispatch remains intact.
 
+**B9 extension:** opt-in dispatch also has an exact security consumer, with all six candidates
+pending. Optional `taskResult.runnerUsage` version 1 carries OpenCode-normalized disjoint
+categories, unknown transport/request counts and `billingComplete=false`. It is distinct from
+native provider usage and cannot coexist with it. Ingestion binds it to the executed security
+revision/provider/profile and checks captured compatibility counts. No migration or costs are
+introduced. See [security support](../agent/SECURITY-SUPPORT.md) for limits and live-evidence gaps.
+
 `app/task_contracts.py` is the shared, dependency-light source of truth for the backend
 and both agent images. This release defines contracts and persists metadata. It does **not**
 execute new tasks, activate providers, run validation commands or claim containment is proven.

@@ -97,8 +97,8 @@ class CiRunIngest(AgentResult):
     def _task_envelope(self):
         r = self.task_result
         if r:
-            if r.provider_usage:
-                u = r.provider_usage
+            if r.provider_usage or r.runner_usage:
+                u = r.provider_usage or r.runner_usage
                 if (self.tokens_in, self.tokens_out, self.cache_read_tokens) != (
                     u.input_tokens or 0, u.output_tokens or 0, u.cache_read_tokens
                 ):
