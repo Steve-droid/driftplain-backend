@@ -8,14 +8,47 @@ from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user, get_db, require_project_token
 from app.ci.tokens import hash_token, mint_token
-from app.models import ExecutionRevision, JenkinsConnection, Project, User
+from app.models import CiRun, ExecutionRevision, JenkinsConnection, Project, User
 from app.selections import service
 from app.selections.schemas import ExplicitProjectCreate, ExplicitProjectUpdate
+from app.task_contracts import PROFILES, TASK_CONTRACT_VERSION
 
 router = APIRouter(prefix="/execution/v1", tags=["execution"])
 Db = Annotated[Session, Depends(get_db)]
 Owner = Annotated[User, Depends(get_current_user)]
 TokenProject = Annotated[Project, Depends(require_project_token)]
+
+
+@router.get("/tasks")
+def task_registry(user: Owner):
+    return {
+        "version": TASK_CONTRACT_VERSION,
+        "profiles": [
+            {
+                "task": task,
+                "mode": mode,
+                "language": language,
+                "proposeFix": fix,
+                "capability": values[0],
+                "resultKinds": list(values[1]),
+            }
+            for (task, mode, language, fix), values in PROFILES.items()
+        ],
+    }
+
+
+@router.get("/projects/{project_id}/runs/{run_id}/result")
+def run_result(project_id: int, run_id: int, db: Db, user: Owner):
+    service.owned_project(db, project_id, user)
+    run = db.get(CiRun, run_id)
+    if run is None or run.project_id != project_id:
+        raise HTTPException(404, "Run not found")
+    return {
+        "runId": run.id,
+        "executionRevisionId": run.execution_revision_id,
+        "taskResult": run.task_result,
+        "gate": run.gate,
+    }
 
 
 @router.get("/candidates")
@@ -105,5 +138,21 @@ def _issue_token(project_id, db, user, *, rotate):
 
 # require_project_token reads the named project_id path parameter, just like legacy.
 @router.get("/projects/{project_id}/agent-config")
-def agent_config(project: TokenProject, db: Db):
-    return service.agent_config(db, project)
+def agent_config(
+    project: TokenProject,
+    db: Db,
+    task_contract_version: int | None = Query(None, alias="taskContractVersion"),
+):
+    result = service.agent_config(db, project)
+    if task_contract_version is not None and (
+        task_contract_version != 1 or result.get("taskContractVersion") != 1
+    ):
+        raise HTTPException(
+            409, "Task contract version is not supported by this revision"
+        )
+    if (
+        result["taskType"] not in ("ci_review", "security_analysis")
+        and task_contract_version != 1
+    ):
+        raise HTTPException(409, "This task requires taskContractVersion=1 negotiation")
+    return result

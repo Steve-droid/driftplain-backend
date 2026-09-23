@@ -27,6 +27,7 @@ from app.models import (
     Project,
 )
 from app.selections.policy import order_scores, policy_for
+from app.task_contracts import TaskConfiguration, configure
 
 # Trusted provider identifiers; no endpoint supplied by users or catalog imports.
 PROVIDERS = {
@@ -361,7 +362,7 @@ def require_runtime(db, runtime_id, p):
     return row[0]
 
 
-def save_selection(db, project, choice):
+def save_selection(db, project, choice, task_configuration=None):
     p = policy(choice.task, choice.mode, choice.language, choice.propose_fix)
     rt = require_runtime(db, choice.runtime_id, p)
     # Specific choices validate independently of pagination and any browser visit.
@@ -418,10 +419,17 @@ def save_selection(db, project, choice):
     project.task_type = choice.task
     project.selected_option_id = None
     project.baseline_model_id = None
-    return new_revision(db, project, selection, rt)
+    return new_revision(db, project, selection, rt, task_configuration)
 
 
-def new_revision(db, project, selection, rt):
+def new_revision(db, project, selection, rt, task_configuration=None):
+    p = selection.policy_snapshot
+    try:
+        task_contract = configure(
+            p["task"], p["mode"], task_configuration, p["language"], p["proposeFix"]
+        )
+    except ValueError as e:
+        invalid(str(e))
     model = db.get(CatalogModel, rt.catalog_model_id)
     config = {
         "contractVersion": 2,
@@ -444,6 +452,7 @@ def new_revision(db, project, selection, rt):
         if rt.task == "ci_review"
         else None,
         "policy": selection.policy_snapshot,
+        **task_contract,
     }
     revision = ExecutionRevision(
         project_id=project.id, selection_id=selection.id, configuration=config
@@ -463,7 +472,7 @@ def create_project(db, payload, user):
     )
     db.add(project)
     db.flush()
-    save_selection(db, project, payload.selection)
+    save_selection(db, project, payload.selection, payload.task_configuration)
     db.commit()
     return project_out(db, project)
 
@@ -475,13 +484,39 @@ def update_project(db, project_id, payload, user):
     if "review_preferences" in payload.model_fields_set:
         project.review_preferences = payload.review_preferences
     if payload.selection:
-        save_selection(db, project, payload.selection)
+        # Preserve custom instructions on same-profile re-picks. A profile switch
+        # requires a new explicit configuration, never silently widens authority.
+        task_config = payload.task_configuration
+        if (
+            "task_configuration" not in payload.model_fields_set
+            and project.execution_revision_id
+        ):
+            old = db.get(ExecutionRevision, project.execution_revision_id).configuration
+            new_policy = policy(
+                payload.selection.task,
+                payload.selection.mode,
+                payload.selection.language,
+                payload.selection.propose_fix,
+            )
+            if old["capability"] == new_policy["capability"] and old.get(
+                "taskConfiguration"
+            ):
+                task_config = TaskConfiguration.model_validate(old["taskConfiguration"])
+        save_selection(db, project, payload.selection, task_config)
     elif project.execution_revision_id:
         revision = db.get(ExecutionRevision, project.execution_revision_id)
         selection = db.get(ModelSelection, revision.selection_id)
         rt = require_runtime(db, selection.runtime_id, selection.policy_snapshot)
-        if "review_preferences" in payload.model_fields_set:
-            new_revision(db, project, selection, rt)
+        if {"review_preferences", "task_configuration"} & payload.model_fields_set:
+            task_config = payload.task_configuration
+            if (
+                "task_configuration" not in payload.model_fields_set
+                and revision.configuration.get("taskConfiguration")
+            ):
+                task_config = TaskConfiguration.model_validate(
+                    revision.configuration["taskConfiguration"]
+                )
+            new_revision(db, project, selection, rt, task_config)
     else:
         invalid("Legacy project needs an explicit selection to use this edit contract")
     db.commit()

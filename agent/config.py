@@ -12,12 +12,14 @@ to reconfigure the agent (or reach its provider).
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated
 
 from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
-Task = Literal["review", "security"]
+from app.task_contracts import LegacyAgentTask
+
+Task = LegacyAgentTask
 
 # Per-task defaults. Security's ceiling is high because an agentic loop reads a lot
 # (a measured DeepSeek run: ~4k input + ~2.6k output + ~88k cache-read per audit).

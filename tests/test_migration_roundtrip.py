@@ -482,3 +482,60 @@ def test_b6_populated_legacy_upgrade_preserves_tokens_and_history(migration_db):
             assert conn.scalar(text('SELECT ci_token_hash FROM jenkins_connection WHERE project_id=:p'),{'p':pid})=='a'*64
     finally:
         engine.dispose()
+
+
+def test_b7_populated_upgrade_preserves_legacy_and_v2_history(migration_db):
+    """Upgrade real B6 records without rewriting configs, findings or feedback."""
+    from alembic import command
+    from sqlalchemy.orm import Session
+    from app.models import CatalogSnapshotLifecycle, ExecutionRevision, ModelSelection, Project, User
+    from app.selections.policy import policy_for
+    from tests.test_selections import evidence
+
+    cfg, url = migration_db
+    command.upgrade(cfg, 'd7e8f9a0b1c2')
+    engine = create_engine(url)
+    try:
+        with Session(engine) as db:
+            rt, obs = evidence.__wrapped__(db)[0]
+            user = User(email='b7-upgrade@example.com', password_hash='fixture')
+            db.add(user)
+            db.flush()
+            project = Project(user_id=user.id, name='Existing B6')
+            db.add(project)
+            db.flush()
+            db.add(CatalogSnapshotLifecycle(snapshot_id=obs.source_snapshot_id, activated_at=rt.verified_at, hold_reason='execution history'))
+            db.flush()
+            selection = ModelSelection(project_id=project.id, user_id=user.id, runtime_id=rt.id,
+                catalog_model_id=rt.catalog_model_id, observation_id=obs.id, snapshot_id=obs.source_snapshot_id,
+                method='supported_unranked', policy_snapshot=policy_for('ci_review', 'single_call'))
+            db.add(selection)
+            db.flush()
+            old_config = {'contractVersion': 2, 'taskType': 'ci_review', 'executionMode': 'single_call',
+                          'model': {'providerModelId': rt.provider_model_id}, 'reviewPreferences': 'Preserve verbatim'}
+            rev = ExecutionRevision(project_id=project.id, selection_id=selection.id, configuration=old_config)
+            db.add(rev)
+            db.flush()
+            project.execution_revision_id = rev.id
+            pid, uid, rid = project.id, user.id, rev.id
+            db.commit()
+        with engine.begin() as conn:
+            run_id = conn.scalar(text("INSERT INTO ci_run (project_id,jenkins_build_id,task,gate,actual_cost) VALUES (:p,'old-b7','ci_review','fail',0.12345) RETURNING id"), {'p': pid})
+            fid = conn.scalar(text("INSERT INTO ci_finding (ci_run_id,category,message,cwe) VALUES (:r,'security','Prior finding','CWE-89') RETURNING id"), {'r': run_id})
+            conn.execute(text("INSERT INTO finding_feedback (ci_finding_id,user_id,verdict) VALUES (:f,:u,'accept')"), {'f': fid, 'u': uid})
+            conn.execute(text("INSERT INTO jenkins_connection (project_id,ci_token_hash) VALUES (:p,:h)"), {'p': pid, 'h': 'c'*64})
+        command.upgrade(cfg, 'head')
+        with engine.connect() as conn:
+            assert conn.scalar(text('SELECT configuration FROM execution_revision WHERE id=:r'), {'r': rid}) == old_config
+            assert conn.scalar(text('SELECT task_result FROM ci_run WHERE id=:r'), {'r': run_id}) is None
+            assert str(conn.scalar(text('SELECT actual_cost FROM ci_run WHERE id=:r'), {'r': run_id})) == '0.123450'
+            assert conn.scalar(text('SELECT verdict FROM finding_feedback WHERE ci_finding_id=:f'), {'f': fid}) == 'accept'
+            assert conn.scalar(text('SELECT ci_token_hash FROM jenkins_connection WHERE project_id=:p'), {'p': pid}) == 'c'*64
+        # B6 history does not block reversing the empty B7 addition.
+        command.downgrade(cfg, 'd7e8f9a0b1c2')
+        command.upgrade(cfg, 'head')
+        with engine.connect() as conn:
+            assert conn.scalar(text('SELECT configuration FROM execution_revision WHERE id=:r'), {'r': rid}) == old_config
+            assert conn.scalar(text('SELECT cwe FROM ci_finding WHERE id=:f'), {'f': fid}) == 'CWE-89'
+    finally:
+        engine.dispose()

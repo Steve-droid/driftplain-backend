@@ -793,6 +793,7 @@ class JenkinsConnection(Base):
 class CiRun(Base):
     __tablename__ = "ci_run"
     __table_args__ = (
+        CheckConstraint("task_result IS NULL OR execution_revision_id IS NOT NULL", name="ck_run_task_result_revision"),
         # One run per (project, Jenkins build) — a re-POSTed build id is rejected
         # (409). NULL build ids stay distinct (non-ingest inserts may omit it).
         UniqueConstraint(
@@ -806,6 +807,7 @@ class CiRun(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id", ondelete="CASCADE"))
     execution_revision_id: Mapped[Optional[int]] = mapped_column(Integer)
+    task_result: Mapped[Optional[dict]] = mapped_column(JSONB(none_as_null=True))
     jenkins_build_id: Mapped[Optional[str]] = mapped_column(String(255))
     model_id: Mapped[Optional[int]] = mapped_column(ForeignKey("model.id"))
     # The task the run performed — the project's task_type at ingest (one vocabulary

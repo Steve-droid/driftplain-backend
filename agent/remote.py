@@ -17,8 +17,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from agent.errors import AgentConfigError
+from app.task_contracts import LEGACY_AGENT_TASKS
 
-TASKS = ("review", "security")
+TASKS = tuple(LEGACY_AGENT_TASKS.values())
 
 
 class RemoteError(AgentConfigError):
@@ -124,7 +125,7 @@ def build_ci_run_payload(result_json: dict, build_id: str) -> dict:
     (it includes cache reads). cacheReadTokens is stored separately, never priced;
     review runs have no captured cache count and send null.
     """
-    return {
+    payload = {
         "findings": [
             {
                 "severity": f["severity"],
@@ -134,7 +135,7 @@ def build_ci_run_payload(result_json: dict, build_id: str) -> dict:
                 "message": f["message"],
                 "cwe": f.get("cwe"),
             }
-            for f in result_json["findings"]
+            for f in result_json.get("findings", [])
         ],
         "tokensIn": result_json["tokensIn"],
         "tokensOut": result_json["tokensOut"],
@@ -144,3 +145,26 @@ def build_ci_run_payload(result_json: dict, build_id: str) -> dict:
         "gateReason": result_json.get("gateReason"),
         "jenkinsBuildId": build_id,
     }
+    if "executionRevisionId" in result_json:
+        payload["executionRevisionId"] = result_json["executionRevisionId"]
+    if "taskResult" in result_json:
+        # Same parser as ingestion; generic reports never pass through a CWE parser.
+        from app.task_contracts import TaskResult
+        payload["taskResult"] = TaskResult.model_validate(result_json["taskResult"]).model_dump(mode="json", by_alias=True)
+    return payload
+
+
+def fetch_execution_config(api_url: str, project_id: int, token: str, timeout: int = 15) -> dict:
+    """Explicit opt-in for future v2 runners; legacy dispatch never calls this.
+
+    Parsing a supported contract does not claim executable runtime support.
+    """
+    from app.task_contracts import validate_execution_config
+
+    url = f"{api_url.rstrip('/')}/execution/v1/projects/{project_id}/agent-config?taskContractVersion=1"
+    body = _request("GET", url, token, timeout)
+    try:
+        validate_execution_config(body, project_id)
+    except (ValueError, TypeError, KeyError):
+        raise RemoteError("Unsupported or inconsistent execution configuration") from None
+    return body

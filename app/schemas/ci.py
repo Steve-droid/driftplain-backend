@@ -21,10 +21,11 @@ import re
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.base import CamelModel
 from app.schemas.findings import AgentResult, Finding
+from app.task_contracts import TaskResult
 from app.tasks import agent_task_for
 
 # Untrusted-input bounds. Generous enough for real runs, tight enough to reject
@@ -81,6 +82,7 @@ class CiRunIngest(AgentResult):
     model_config = ConfigDict(extra="forbid")
 
     execution_revision_id: int | None = Field(default=None, gt=0)
+    task_result: TaskResult | None = None
     jenkins_build_id: str = Field(min_length=1, max_length=255, pattern=_BUILD_ID_RE)
     findings: list[IngestFinding] = Field(default_factory=list, max_length=MAX_FINDINGS)
     tokens_in: int = Field(ge=0, le=MAX_TOKENS)
@@ -90,6 +92,18 @@ class CiRunIngest(AgentResult):
     # (which never sends it) still validates under extra="forbid"; STORED, never
     # priced — savings stay `tokens_in/out × catalog price` on both sides (HLD §8).
     cache_read_tokens: Optional[int] = Field(default=None, ge=0, le=MAX_TOKENS)
+
+    @model_validator(mode="after")
+    def _task_envelope(self):
+        r = self.task_result
+        if r:
+            if self.execution_revision_id is None:
+                raise ValueError("Task results require an execution revision")
+            if r.kind != "findings" and self.findings:
+                raise ValueError("Report/patch results cannot manufacture findings")
+            if self.gate == "pass" and (r.execution_status != "completed" or r.validation_status in ("failed", "unavailable")):
+                raise ValueError("Failed execution or validation cannot pass the gate")
+        return self
 
 
 class CiRunOut(CamelModel):
@@ -112,6 +126,7 @@ class CiRunOut(CamelModel):
     gate_reason: Optional[str] = None
     findings_count: int
     execution_revision_id: int | None = None
+    task_result: TaskResult | None = None
 
 
 class CiSetupOut(CamelModel):
