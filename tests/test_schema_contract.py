@@ -62,6 +62,7 @@ CONTRACT = {
     "CatalogProviderOut": {"id", "slug", "name"},
     "CatalogBenchmarkOut": {
         "id", "slug", "name", "description", "tooltip", "methodologyUrl", "limitations",
+        "collection", "sources", "versionLabels", "metricUnits",
     },
     "CatalogMetricValueOut": {
         "metricId", "key", "name", "description", "unit", "direction", "value",
@@ -88,6 +89,7 @@ CONTRACT = {
     },
     "CatalogBenchmarkDetailOut": {
         "id", "slug", "name", "description", "tooltip", "methodologyUrl", "limitations",
+        "collection", "sources", "versionLabels", "metricUnits",
         "versions", "taskTypes",
     },
     "CatalogObservationOut": {
@@ -97,11 +99,16 @@ CONTRACT = {
         "sourceModelLabel", "modelId", "modelName", "providerDeploymentId", "providerId",
         "providerName", "origin", "provenanceStatus", "taskType", "contextWindow",
         "reportedCostPerMtok", "observedAt", "metrics",
+        "snapshotStatus", "citationUrl", "coverageNote", "runner", "runnerVersion",
+        "protocolConfiguration",
     },
     "CatalogModelPage": {"items", "pageInfo"},
     "CatalogProviderPage": {"items", "pageInfo"},
     "CatalogBenchmarkPage": {"items", "pageInfo"},
     "CatalogObservationPage": {"items", "pageInfo"},
+    "CatalogSourceOut": {"id", "slug", "name", "resultUrl", "attribution", "licenseText",
+        "snapshotId", "fetchedAt", "publicationDate", "refreshStatus", "checkedAt"},
+    "CatalogSourcePage": {"items", "pageInfo"},
     "CatalogSearchPage": {"items", "pageInfo"},
 }
 
