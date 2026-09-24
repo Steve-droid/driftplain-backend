@@ -1,7 +1,9 @@
-"""B10 runtime setup seam. Full picker and editable setup UX belong to B13/B14."""
+"""Versioned custom and writable setup commands; B14 adds Other Jenkins stages."""
 
 import re
 import shlex
+
+from app.task_contracts import TaskConfiguration
 
 
 def build_execution_command(configuration, launcher_image, editor_image):
@@ -13,7 +15,6 @@ def build_execution_command(configuration, launcher_image, editor_image):
     ):
         raise ValueError("Writable or custom configuration required")
     if configuration["taskType"] == "test_generation":
-        from app.task_contracts import TaskConfiguration
         from app.test_generation_contracts import validate_test_environment
 
         validate_test_environment(
@@ -48,6 +49,9 @@ def build_execution_command(configuration, launcher_image, editor_image):
         else ""
     )
     if mode == "single_call":
+        resources = TaskConfiguration.model_validate(
+            configuration["taskConfiguration"]
+        ).resources
         return (
             """# Bind explicitly prepared diff and named artifacts at /inputs. Prompts stay in the API revision.
 docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \\
@@ -55,6 +59,7 @@ docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \\
   -v "$PWD:/workspace:ro" -v "$DRIFTPLAIN_INPUTS:/inputs:ro" \\
   -e AGENT_WORKSPACE=/workspace -e AGENT_INPUT_ARTIFACTS=/inputs \\
 """
+            + f"  --cpus {resources.cpu_millis / 1000:g} --memory {resources.memory_mib}m --pids-limit {resources.max_processes} \\\n"
             + common
             + f"  -e {credential} --entrypoint /venv/bin/python {shlex.quote(launcher_image)} -m agent{diff}\n"
         )
@@ -88,5 +93,22 @@ def build_test_stage(command):
         + ' > "$DRIFTPLAIN_SCRATCH/result.json"\n'
         + "'''\n  }\n  post {\n    always {\n      dir(env.DRIFTPLAIN_SCRATCH) {\n"
         + "        archiveArtifacts artifacts: 'result/**,result.json', allowEmptyArchive: true\n"
+        + "      }\n    }\n  }\n}\n"
+    )
+
+
+def build_other_stage(command, mode):
+    """Archive custom outputs even when generation or required validation fails."""
+    if mode not in ("single_call", "opencode"):
+        raise ValueError("Unsupported mode")
+    artifacts = "result/**,result.json" if mode == "opencode" else "result.json"
+    return (
+        "stage('Custom task') {\n  steps {\n    sh '''set -eu\n"
+        # Redirect the complete fragment, including multi-command launchers.
+        + "(\n"
+        + command.rstrip()
+        + '\n) > "$DRIFTPLAIN_SCRATCH/result.json"\n'
+        + "'''\n  }\n  post {\n    always {\n      dir(env.DRIFTPLAIN_SCRATCH) {\n"
+        + f"        archiveArtifacts artifacts: '{artifacts}', allowEmptyArchive: true\n"
         + "      }\n    }\n  }\n}\n"
     )

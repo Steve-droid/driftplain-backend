@@ -122,3 +122,9 @@ record prompt/input/output/image/binary hashes and actual returned identity/opti
 account spending including hidden OpenCode retries. Use only throwaway fixtures, one native
 request or one bounded OpenCode session per profile, no automatic repairs/retries outside the
 pinned runner. No smoke, activation or operational change is authorized by this document.
+
+B14 publishes the custom authoring UI and extends the backend setup seam with an additive
+`jenkinsStage`. It captures single-call `result.json`, or OpenCode `result/**` plus JSON,
+and archives from external scratch even when the command fails. Single-call Docker flags
+now also enforce the persisted CPU/memory/process ceilings. Templates remain editable
+literal prompts; they cannot grant capabilities. No agent change or activation is included.

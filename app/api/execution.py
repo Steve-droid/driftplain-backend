@@ -167,7 +167,11 @@ def agent_config(
 def execution_ci_command(project_id: int, db: Db, user: Owner):
     """Versioned task setup seam; images must be pinned by the operator."""
     from app.config import get_settings
-    from app.selections.other_setup import build_other_command, build_test_stage
+    from app.selections.other_setup import (
+        build_other_command,
+        build_other_stage,
+        build_test_stage,
+    )
 
     project = service.owned_project(db, project_id, user)
     body = service.agent_config(db, project)
@@ -202,6 +206,11 @@ def execution_ci_command(project_id: int, db: Db, user: Owner):
         **(
             {"jenkinsStage": build_test_stage(command)}
             if body["taskType"] == "test_generation"
+            else {}
+        ),
+        **(
+            {"jenkinsStage": build_other_stage(command, body["executionMode"])}
+            if body["taskType"] == "other"
             else {}
         ),
         "executionRevisionId": body["executionRevisionId"],
