@@ -514,11 +514,10 @@ def test_b7_populated_upgrade_preserves_legacy_and_v2_history(migration_db):
             db.flush()
             old_config = {'contractVersion': 2, 'taskType': 'ci_review', 'executionMode': 'single_call',
                           'model': {'providerModelId': rt.provider_model_id}, 'reviewPreferences': 'Preserve verbatim'}
-            rev = ExecutionRevision(project_id=project.id, selection_id=selection.id, configuration=old_config)
-            db.add(rev)
-            db.flush()
-            project.execution_revision_id = rev.id
-            pid, uid, rid = project.id, user.id, rev.id
+            import json
+            rid = db.scalar(text('INSERT INTO execution_revision(project_id,selection_id,configuration) VALUES (:p,:s,CAST(:c AS jsonb)) RETURNING id'), {'p':project.id,'s':selection.id,'c':json.dumps(old_config)})
+            project.execution_revision_id = rid
+            pid, uid = project.id, user.id
             db.commit()
         with engine.begin() as conn:
             run_id = conn.scalar(text("INSERT INTO ci_run (project_id,jenkins_build_id,task,gate,actual_cost) VALUES (:p,'old-b7','ci_review','fail',0.12345) RETURNING id"), {'p': pid})
@@ -538,5 +537,32 @@ def test_b7_populated_upgrade_preserves_legacy_and_v2_history(migration_db):
         with engine.connect() as conn:
             assert conn.scalar(text('SELECT configuration FROM execution_revision WHERE id=:r'), {'r': rid}) == old_config
             assert conn.scalar(text('SELECT cwe FROM ci_finding WHERE id=:f'), {'f': fid}) == 'CWE-89'
+    finally:
+        engine.dispose()
+
+
+def test_b15_preserves_legacy_amounts_and_refuses_populated_downgrade(migration_db):
+    from alembic import command
+    cfg, url = migration_db
+    command.upgrade(cfg, 'f9a0b1c2d3e4')
+    engine = create_engine(url)
+    try:
+        with engine.begin() as conn:
+            uid = conn.scalar(text("INSERT INTO public.user(email,password_hash) VALUES ('b15@example.com','fixture') RETURNING id"))
+            pid = conn.scalar(text("INSERT INTO project(user_id,name) VALUES (:u,'Legacy') RETURNING id"),{'u':uid})
+            rid = conn.scalar(text("INSERT INTO ci_run(project_id,actual_cost,baseline_cost,savings) VALUES (:p,0.123456,0.654321,0.530865) RETURNING id"),{'p':pid})
+        command.upgrade(cfg,'head')
+        with engine.connect() as conn:
+            row = conn.execute(text('SELECT actual_cost,baseline_cost,savings,billing FROM ci_run WHERE id=:r'),{'r':rid}).one()
+            assert tuple(str(v) for v in row[:3]) == ('0.123456','0.654321','0.530865')
+            assert row[3] is None
+        command.downgrade(cfg,'f9a0b1c2d3e4')
+        command.upgrade(cfg,'head')
+        with engine.begin() as conn:
+            conn.execute(text("INSERT INTO ci_run(project_id,billing) VALUES (:p,CAST(:b AS jsonb))"),{'p':pid,'b':'{"version":1,"status":"unavailable"}'})
+        with pytest.raises(Exception, match='Cannot discard billing history'):
+            command.downgrade(cfg,'f9a0b1c2d3e4')
+        with engine.connect() as conn:
+            assert conn.scalar(text('SELECT count(*) FROM ci_run WHERE billing IS NOT NULL')) == 1
     finally:
         engine.dispose()

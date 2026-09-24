@@ -39,3 +39,16 @@ def get_run_findings(
     current_user: User = Depends(get_current_user),
 ) -> RunFindingsResponse:
     return dashboard.run_findings(db, project_id, run_id, current_user)
+
+
+@router.get('/{project_id}/usage/v1')
+def get_project_usage(
+    project_id: int,
+    range: SavingsRange = Query(default='all'),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.billing.dashboard import project_usage
+    return project_usage(db, project_id, current_user, range, offset, limit)

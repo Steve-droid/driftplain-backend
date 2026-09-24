@@ -170,7 +170,29 @@ class ReviewProvider:
     def _usage(self, data):
         p = self.profile.provider
         u = data.get("usageMetadata" if p == "google" else "usage") or {}
-        common = {"provider": p, "profile_version": self.profile.version}
+        raw_tier = (
+            data.get("service_tier")
+            if p == "openai"
+            else u.get("service_tier" if p == "anthropic" else "serviceTier")
+        )
+        tier_maps = {
+            "openai": {
+                "default": "standard",
+                "priority": "priority",
+                "flex": "flex",
+                "scale": "scale",
+                "ultrafast": "ultrafast",
+            },
+            "anthropic": {"standard": "standard", "priority": "priority"},
+            "google": {"standard": "standard", "priority": "priority", "flex": "flex"},
+        }
+        tier = tier_maps[p].get(raw_tier) if isinstance(raw_tier, str) else None
+        common = {
+            "provider": p,
+            "profile_version": self.profile.version,
+            "service_tier": tier,
+            "reported_model_id": data.get("modelVersion" if p == "google" else "model"),
+        }
         if p == "openai":
             i, o = (
                 u.get("input_tokens_details") or {},

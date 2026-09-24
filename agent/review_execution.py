@@ -209,7 +209,9 @@ def run_review(diff, configuration, local, *, client=None):
         mode="single_call",
         execution_status=status,
         execution_reason=reason,
-        provider_usage=u,
+        provider_usage=u
+        if configuration.get("billingContractVersion") == 1
+        else u.model_copy(update={"service_tier": None, "reported_model_id": None}),
     )
     return {
         "findings": [f.model_dump(mode="json", by_alias=True) for f in findings],

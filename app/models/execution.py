@@ -119,6 +119,7 @@ class ExecutionRevision(Base):
     project_id: Mapped[int] = mapped_column(Integer)
     selection_id: Mapped[int] = mapped_column(Integer)
     configuration: Mapped[dict] = mapped_column(JSONB)
+    billing_snapshot: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -273,7 +273,8 @@ def test_patch_roundtrip_and_populated_downgrade_guard(client, db_session, evide
     r = client.post(f"/projects/{p['id']}/ci-runs", headers=ci, json=data)
     assert r.status_code == 201, r.text
     assert r.json()["taskResult"]["patch"]["sha256"] == "b" * 64
-    with pytest.raises(RuntimeError, match="preserve task"):
+    db_session.commit()
+    with pytest.raises(Exception, match="Cannot discard billing history"):
         command.downgrade(Config("alembic.ini"), "d7e8f9a0b1c2")
     db_session.expire_all()
     assert (

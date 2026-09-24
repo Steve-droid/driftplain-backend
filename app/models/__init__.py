@@ -5,6 +5,7 @@ Importing this package registers every model on ``Base.metadata`` (Alembic's
 """
 
 from app.models.base import Base
+from app.models.billing import BillingRate
 from app.models.execution import DiagnosisClaim, ExecutionRuntime, ModelSelection, ExecutionRevision
 from app.models.orm import (
     AgentRuntimeConfig,
@@ -46,6 +47,7 @@ from app.models.orm import (
 )
 
 __all__ = [
+    "BillingRate",
     "DiagnosisClaim", "ExecutionRuntime", "ModelSelection", "ExecutionRevision",
     "AgentRuntimeConfig",
     "Base",

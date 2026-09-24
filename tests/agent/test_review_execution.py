@@ -257,3 +257,21 @@ def test_real_billing_categories_count_once_for_ceiling():
         client=ReviewProvider(p, transport=Transport(body)),
     )
     assert code == 124 and r["cacheReadTokens"] == 100_000
+
+
+@pytest.mark.parametrize("negotiated", [False, True])
+def test_service_tier_emission_requires_b15_configuration(negotiated):
+    c = configuration()
+    if negotiated:
+        c["billingContractVersion"] = 1
+    p = REVIEW_PROFILES["gpt-5.6-sol"]
+    body = response(p.provider, p.model)
+    body["service_tier"] = "default"
+    result, code = run_review(
+        "diff", c, AgentConfig(), client=ReviewProvider(p, transport=Transport(body))
+    )
+    assert code == 0
+    usage = result["taskResult"]["providerUsage"]
+    assert usage.get("serviceTier") == ("standard" if negotiated else None)
+    if not negotiated:
+        assert "serviceTier" not in usage

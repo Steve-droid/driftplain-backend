@@ -147,8 +147,15 @@ def result_envelope(configuration, metadata, usage, code):
         "tokensOut": usage.output_tokens or 0,
         "cacheReadTokens": usage.cache_read_tokens,
         "model": configuration["model"]["providerModelId"],
-        "gate": "pass" if code == 0 and metadata.task != "ci_failure_diagnosis" else "fail",
-        "gateReason": ("Original upstream result preserved" if metadata.task == "ci_failure_diagnosis" else None) or metadata.execution_reason
+        "gate": "pass"
+        if code == 0 and metadata.task != "ci_failure_diagnosis"
+        else "fail",
+        "gateReason": (
+            "Original upstream result preserved"
+            if metadata.task == "ci_failure_diagnosis"
+            else None
+        )
+        or metadata.execution_reason
         or ("Validation did not pass" if code else None),
         "executionRevisionId": configuration["executionRevisionId"],
         "taskResult": metadata.model_dump(mode="json", by_alias=True),
@@ -219,6 +226,10 @@ def run_single_call(
         execution_status=status,
         execution_reason=reason,
         report=report,
-        provider_usage=client.usage,
+        provider_usage=client.usage
+        if configuration.get("billingContractVersion") == 1
+        else client.usage.model_copy(
+            update={"service_tier": None, "reported_model_id": None}
+        ),
     )
     return result_envelope(configuration, metadata, client.usage, code)

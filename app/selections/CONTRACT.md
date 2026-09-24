@@ -163,3 +163,8 @@ never enter the generated shell. Single-call containers apply persisted CPU/memo
 ceilings as well as the existing read-only rootfs, mounts and agent-enforced time/token bounds.
 Owner checks, operator digest requirements and exact enabled runtime checks remain unchanged.
 No config/result version, migration, executor implementation or runtime activation changes.
+
+B15 adds `billingContractVersion: 1` to newly created immutable configurations and pins
+operator rate schedules separately from executable configuration. The selected-run read
+and immutable accounting policy are in [billing/CONTRACT.md](../billing/CONTRACT.md).
+Legacy amount columns remain unchanged; new accounting does not use a comparison baseline.
