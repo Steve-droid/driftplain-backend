@@ -21,6 +21,11 @@ ALLOWED_TOOLS = frozenset(
 
 
 def configuration(profile, cfg, output, steps):
+    named = hasattr(profile, "language")
+    if named:
+        from agent.test_generation import SYSTEM_PROMPT
+
+        cfg = cfg.model_copy(update={"system_prompt": SYSTEM_PROMPT})
     result = opencode_configuration(profile, cfg, output, steps)
     permissions = {
         "*": "deny",
@@ -34,7 +39,7 @@ def configuration(profile, cfg, output, steps):
     }
     result["permission"] = permissions
     result["agent"].pop("audit")
-    result["agent"]["custom"] = {
+    result["agent"]["tests" if named else "custom"] = {
         "mode": "primary",
         "model": profile.route,
         "steps": steps,
@@ -81,7 +86,12 @@ def worker():
     negotiated = {
         k: v for k, v in config.items() if k not in {"prompt", "outputTokens", "steps"}
     }
-    p = resolve_other_profile(negotiated)
+    if negotiated["taskType"] == "test_generation":
+        from agent.test_generation import resolve_test_profile
+
+        p = resolve_test_profile(negotiated)
+    else:
+        p = resolve_other_profile(negotiated)
     cfg = TaskConfiguration.model_validate(config["taskConfiguration"])
     with open("/usr/local/bin/opencode", "rb") as f:
         if hashlib.file_digest(f, "sha256").hexdigest() != OPENCODE_BINARY_SHA256:
@@ -97,9 +107,11 @@ def worker():
                 "--format",
                 "json",
                 "--agent",
-                "custom",
+                "tests" if hasattr(p, "language") else "custom",
                 "--title",
-                "Driftplain custom task",
+                "Driftplain test generation"
+                if hasattr(p, "language")
+                else "Driftplain custom task",
                 "-m",
                 p.route,
                 config["prompt"],

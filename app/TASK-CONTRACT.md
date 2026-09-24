@@ -21,6 +21,18 @@ revision-bound. Three models in each mode remain pending, with no runtime activa
 The trusted launcher, narrow MCP tool, separate networkless validation containers and final
 patch checks are documented in [Other support](../agent/OTHER-SUPPORT.md). No migration.
 
+**B11 extension:** named Python/pytest and Node `node:test` consumers share B10's isolated
+lifecycle. Optional `testEnvironment` pins the reviewed runner and dependency lock; B11
+execution requires it. Added files only, immutable existing source/tests/configuration,
+real generated-test execution, full baseline identity preservation and final-patch binding
+are enforced outside the editor. `ValidationCheck.testEvidence` adds bounded environment,
+path and baseline/final identity evidence. A named passing gate now requires this evidence;
+raw exit-zero/count claims are insufficient. `runnerUsage` extends to test generation with
+unchanged semantics. Six model/language integrations remain pending; no migration or runtime
+activation. The setup seam supplies a failure-preserving Jenkins stage. See
+[test-generation support](../agent/TEST-GENERATION-SUPPORT.md) for exact environment contracts,
+profile restrictions, reporter trust limits and offline/live-evidence distinctions.
+
 `app/task_contracts.py` is the shared, dependency-light source of truth for the backend
 and both agent images. This release defines contracts and persists metadata. It does **not**
 execute new tasks, activate providers, run validation commands or claim containment is proven.

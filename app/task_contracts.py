@@ -131,6 +131,22 @@ class ValidationCommand(Contract):
     max_seconds: int = Field(default=120, ge=1, le=600)
 
 
+class TestEnvironment(Contract):
+    profile: Literal["pytest-v1", "node-test-v1"]
+    dependency_lock: Path
+    dependency_sha256: Digest
+
+
+class TestEvidence(Contract):
+    profile: Literal["pytest-v1", "node-test-v1"]
+    dependency_sha256: Digest
+    generated_paths: list[Path] = Field(min_length=1, max_length=100)
+    existing_tests_discovered: int = Field(gt=0, le=10000)
+    existing_tests_executed: int = Field(gt=0, le=10000)
+    baseline_identity_sha256: Digest
+    existing_identity_sha256: Digest
+
+
 class TaskConfiguration(Contract):
     label: str | None = Field(default=None, min_length=1, max_length=100)
     system_prompt: str | None = Field(default=None, min_length=1, max_length=8000)
@@ -140,6 +156,10 @@ class TaskConfiguration(Contract):
     write_paths: list[Path] = Field(default_factory=list, max_length=30)
     validation_commands: list[ValidationCommand] = Field(
         default_factory=list, max_length=5
+    )
+
+    test_environment: TestEnvironment | None = Field(
+        default=None, exclude_if=lambda v: v is None
     )
 
     @model_validator(mode="after")
@@ -169,6 +189,12 @@ def configure(task, mode, config=None, language=None, propose_fix=False):
         c.required for c in config.validation_commands
     ):
         raise ValueError("Test generation requires configured validation")
+    if config.test_environment:
+        if task != "test_generation":
+            raise ValueError("Test environment belongs to named test generation")
+        from app.test_generation_contracts import validate_test_environment
+
+        validate_test_environment(config, language)
     if mode == "single_call":
         # Persist the actual one-generation limit, independent of prompt content.
         config = config.model_copy(
@@ -236,6 +262,9 @@ class ValidationCheck(Contract):
     exit_code: int | None = Field(default=None, ge=-255, le=255)
     duration_ms: int | None = Field(default=None, ge=0, le=1800000)
     log_artifact_id: Identifier | None = None
+    test_evidence: TestEvidence | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
     generated_tests_discovered: int | None = Field(default=None, ge=0, le=1000000)
     generated_tests_executed: int | None = Field(default=None, ge=0, le=1000000)
     reason: str | None = Field(default=None, max_length=1000)
@@ -275,7 +304,9 @@ class TaskResult(Contract):
     validations: list[ValidationCheck] = Field(default_factory=list, max_length=5)
     # B8 additive evidence; persisted inside the already immutable JSON envelope.
     provider_usage: ProviderUsage | None = None
-    runner_usage: RunnerUsage | None = Field(default=None, exclude_if=lambda value: value is None)
+    runner_usage: RunnerUsage | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     @model_validator(mode="after")
     def consistent_result(self):
@@ -373,27 +404,37 @@ def validate_result_configuration(
         if result.task not in ("ci_review", "other") or result.mode != "single_call":
             raise ValueError("Native usage requires a single-call profile")
         if (usage.provider, usage.profile_version) != (
-            configuration["model"]["provider"], configuration["runtimeVersion"]
+            configuration["model"]["provider"],
+            configuration["runtimeVersion"],
         ):
             raise ValueError("Usage differs from executed provider profile")
         if result.execution_status == "completed" and (
             usage.total_tokens is None or usage.generation_requests != 1
         ):
             raise ValueError("Completed review requires complete usage")
-        if gate == "pass" and max(usage.captured_tokens, usage.reported_total_tokens or 0) > c.resources.max_tokens:
+        if (
+            gate == "pass"
+            and max(usage.captured_tokens, usage.reported_total_tokens or 0)
+            > c.resources.max_tokens
+        ):
             raise ValueError("Usage exceeding the configured ceiling cannot pass")
     runner = result.runner_usage
     if runner:
-        if result.task not in ("security_analysis", "other") or result.mode != "opencode":
+        if (
+            result.task not in ("security_analysis", "other", "test_generation")
+            or result.mode != "opencode"
+        ):
             raise ValueError("Runner usage requires an OpenCode profile")
         if (runner.provider, runner.profile_version) != (
-            configuration["model"]["provider"], configuration["runtimeVersion"]
+            configuration["model"]["provider"],
+            configuration["runtimeVersion"],
         ):
             raise ValueError("Runner usage differs from executed provider profile")
         if result.execution_status == "completed" and not runner.complete:
             raise ValueError("Completed security requires complete runner events")
         if gate == "pass" and (
-            max(runner.captured_tokens, runner.reported_total_tokens or 0) > c.resources.max_tokens
+            max(runner.captured_tokens, runner.reported_total_tokens or 0)
+            > c.resources.max_tokens
             or runner.completed_steps > c.resources.max_iterations
             or runner.tool_calls > c.resources.max_iterations
             or runner.attempts > c.resources.max_attempts
@@ -408,6 +449,10 @@ def validate_result_configuration(
         raise ValueError(
             "Patch metadata contains paths outside the permitted write paths"
         )
+    if result.task == "test_generation" and result.patch:
+        from app.test_generation_contracts import validate_test_paths
+
+        validate_test_paths(result.language, result.patch.files)
     if sum(a.size_bytes for a in result.artifacts) > c.resources.max_output_bytes:
         raise ValueError("Artifact manifest exceeds configured output ceiling")
     commands = {v.id: v for v in c.validation_commands}
@@ -425,6 +470,40 @@ def validate_result_configuration(
             raise ValueError("Validation exceeding the configured ceiling cannot pass")
     if result.validation_status == "passed" and set(commands) != set(checks):
         raise ValueError("Passed validation must account for every configured command")
+    for v in result.validations:
+        e = v.test_evidence
+        if e:
+            if (
+                result.task != "test_generation"
+                or not c.test_environment
+                or not result.patch
+            ):
+                raise ValueError(
+                    "Named test evidence requires its environment and patch"
+                )
+            if (e.profile, e.dependency_sha256) != (
+                c.test_environment.profile,
+                c.test_environment.dependency_sha256,
+            ):
+                raise ValueError(
+                    "Test evidence differs from the configured environment"
+                )
+            if sorted(e.generated_paths) != sorted(f.path for f in result.patch.files):
+                raise ValueError(
+                    "Test evidence must cover exactly the final generated paths"
+                )
+            if (
+                e.baseline_identity_sha256 != e.existing_identity_sha256
+                or e.existing_tests_discovered != e.existing_tests_executed
+            ):
+                raise ValueError(
+                    "Existing test identities and execution must be preserved"
+                )
+            if (
+                not v.generated_tests_discovered
+                or v.generated_tests_discovered != v.generated_tests_executed
+            ):
+                raise ValueError("Every discovered generated test must execute")
     if gate == "pass":
         if result.execution_status != "completed":
             raise ValueError("Incomplete execution cannot pass")
@@ -441,6 +520,7 @@ def validate_result_configuration(
             not result.patch
             or not any(
                 v.status == "passed"
+                and v.test_evidence is not None
                 and (v.generated_tests_discovered or 0) > 0
                 and (v.generated_tests_executed or 0) > 0
                 for v in result.validations

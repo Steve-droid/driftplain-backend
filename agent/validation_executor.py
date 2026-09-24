@@ -11,6 +11,7 @@ from app.task_contracts import Artifact, ValidationCheck
 class DockerValidationExecutor:
     def __init__(self, resources):
         self.resources = resources
+        self.cleanup_failed = False
 
     def argv(self, name, workspace, command):
         r = self.resources
@@ -76,10 +77,14 @@ class DockerValidationExecutor:
             reason = "Validation executor unavailable"
         finally:
             # Killing a docker CLI does not kill a container. Always remove the job container.
-            cleanup = run_bounded(
-                ["docker", "rm", "-f", name], seconds=10, max_bytes=8192
-            )
-            if cleanup.code or cleanup.reason:
+            try:
+                cleanup = run_bounded(
+                    ["docker", "rm", "-f", name], seconds=10, max_bytes=8192
+                )
+                self.cleanup_failed = bool(cleanup.code or cleanup.reason)
+            except OSError:
+                self.cleanup_failed = True
+            if self.cleanup_failed:
                 reason = "Validation cleanup could not be confirmed"
         common = dict(
             command_id=command.id,
@@ -87,7 +92,7 @@ class DockerValidationExecutor:
             base_commit=base_commit,
             patch_sha256=patch_sha256,
         )
-        if reason:
+        if result is None:
             return ValidationCheck(**common, status="unavailable", reason=reason), None
         raw = result.output
         path = Path(out) / f"validation-{command.id}.log"
@@ -99,6 +104,13 @@ class DockerValidationExecutor:
             sha256=hashlib.sha256(raw).hexdigest(),
             size_bytes=len(raw),
         )
+        if reason:
+            return ValidationCheck(
+                **common,
+                status="unavailable",
+                reason=reason,
+                log_artifact_id=artifact.id,
+            ), artifact
         return ValidationCheck(
             **common,
             status="passed" if result.code == 0 else "failed",
