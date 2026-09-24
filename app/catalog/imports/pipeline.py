@@ -254,22 +254,44 @@ def _promote(db, spec, source, state, raw, now):
     db.add(Lifecycle(snapshot_id=snapshot.id, activated_at=now))
     state.active_snapshot_id = snapshot.id
     state.last_promoted_at = now
+    state.reviewed_report_hash = None
     db.flush()
     return ImportResult("promoted", snapshot.id)
 
 
-def _run(engine, source_id, acquire, *, checked_at=None):
-    spec = get_source(source_id)
-    if checked_at is not None and checked_at.tzinfo is None:
-        raise ValueError("check time must be timezone-aware")
-    lock = int.from_bytes(
+def source_lock_key(source_id):
+    return int.from_bytes(
         hashlib.sha256(("catalog-import:" + source_id).encode()).digest()[:8],
         "big",
         signed=True,
     )
+
+
+def _run(
+    engine,
+    source_id,
+    acquire,
+    *,
+    checked_at=None,
+    report=False,
+    nonblocking=False,
+    refresh=False,
+):
+    spec = get_source(source_id)
+    if checked_at is not None and checked_at.tzinfo is None:
+        raise ValueError("check time must be timezone-aware")
+    lock = source_lock_key(source_id)
     with engine.connect() as connection:
-        connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": lock})
+        if nonblocking:
+            acquired = connection.scalar(
+                text("SELECT pg_try_advisory_lock(:key)"), {"key": lock}
+            )
+        else:
+            connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": lock})
+            acquired = True
         connection.commit()
+        if not acquired:
+            return ImportResult("overlap")
         try:
             # A queued invocation's check starts only once it owns the source lock.
             now = checked_at or datetime.now(UTC)
@@ -279,7 +301,11 @@ def _run(engine, source_id, acquire, *, checked_at=None):
                     if state.last_checked_at and now < state.last_checked_at:
                         raise ValueError("check time precedes last check")
                     response = acquire(state)
-                    if response.status == 304:
+                    if report:
+                        from app.catalog.imports.refresh import record_report
+
+                        result = record_report(db, spec, source, state, response, now)
+                    elif response.status == 304:
                         if (
                             not state.active_snapshot_id
                             or state.checked_content_hash is None
@@ -297,8 +323,13 @@ def _run(engine, source_id, acquire, *, checked_at=None):
                     state.last_successful_check_at = now
                     state.failure_count = 0
                     state.failure_code = None
-                    state.etag = response.etag
-                    state.last_modified = response.last_modified
+                    if refresh:
+                        state.refresh_last_checked_at = now
+                        state.refresh_last_successful_check_at = now
+                        state.refresh_failure_count = 0
+                    if not report:
+                        state.etag = response.etag
+                        state.last_modified = response.last_modified
                     db.commit()
                     return result
                 except (ValueError, SQLAlchemyError, OSError) as exc:
@@ -307,6 +338,11 @@ def _run(engine, source_id, acquire, *, checked_at=None):
                     source, state = import_state(db, spec, validate_source=False)
                     state.last_checked_at = max(now, state.last_checked_at or now)
                     state.failure_count += 1
+                    if refresh:
+                        state.refresh_last_checked_at = max(
+                            now, state.refresh_last_checked_at or now
+                        )
+                        state.refresh_failure_count += 1
                     state.failure_code = (
                         "persistence_failure"
                         if isinstance(exc, SQLAlchemyError)
@@ -331,7 +367,15 @@ def import_bytes(engine, source_id, raw, *, checked_at=None):
     )
 
 
-def import_source(engine, source_id, *, fetcher=None, checked_at=None):
+def import_source(
+    engine,
+    source_id,
+    *,
+    fetcher=None,
+    checked_at=None,
+    nonblocking=False,
+    refresh=False,
+):
     """Structured feeds may promote; reviewed reports require an explicit manifest import."""
     from app.catalog.imports.fetch import fetch
 
@@ -344,6 +388,8 @@ def import_source(engine, source_id, *, fetcher=None, checked_at=None):
             source_id,
             lambda state: acquire_source(spec, fetcher=fetcher, state=state),
             checked_at=checked_at,
+            nonblocking=nonblocking,
+            refresh=refresh,
         )
     if spec["importMode"] != "automatic_structured":
         raise ValueError("reviewed report: import an explicitly reviewed manifest")
@@ -359,4 +405,11 @@ def import_source(engine, source_id, *, fetcher=None, checked_at=None):
             last_modified=state.last_modified,
         )
 
-    return _run(engine, source_id, acquire, checked_at=checked_at)
+    return _run(
+        engine,
+        source_id,
+        acquire,
+        checked_at=checked_at,
+        nonblocking=nonblocking,
+        refresh=refresh,
+    )

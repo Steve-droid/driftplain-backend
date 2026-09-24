@@ -8,10 +8,11 @@ Run locally:
     docker compose up                             # backend + Postgres
 """
 
-from fastapi import FastAPI, Request, Response, status
+from fastapi import Depends, FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
 
 from app import __version__
 from app.api import (
@@ -28,6 +29,7 @@ from app.api import (
     savings,
 )
 from app.config import get_settings
+from app.auth.deps import get_db
 from app.db import check_db
 from app.observability import configure_logging
 from app.observability.http import MetricsMiddleware
@@ -106,7 +108,7 @@ def readyz(response: Response) -> dict[str, str]:
 
 
 @app.get("/metrics")
-def metrics() -> Response:
+def metrics(db: Session = Depends(get_db)) -> Response:
     """Prometheus scrape target. Three families:
     - HTTP: request count + duration by method/route/status (rate, latency, error rate);
     - DB: query duration by SQL operation;
@@ -114,4 +116,8 @@ def metrics() -> Response:
       Grafana applies the $/1k rate).
     Aggregated across gunicorn workers when multiprocess mode is on."""
     payload, content_type = render_metrics()
+    if get_settings().catalog_refresh_metrics_enabled:
+        from app.catalog.imports.metrics import render_catalog_metrics
+
+        payload += render_catalog_metrics(db)
     return Response(content=payload, media_type=content_type)

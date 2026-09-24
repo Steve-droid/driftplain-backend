@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     max_registered_users: int = Field(default=700, ge=0)
     seed_new_user_examples: bool = True
     chat_enabled: bool = True
+    catalog_refresh_metrics_enabled: bool = False
     auth_rate_limit_enabled: bool = True
     auth_requests_per_minute: int = Field(default=120, ge=1)
     auth_burst: int = Field(default=4, ge=1, le=20)

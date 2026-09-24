@@ -947,6 +947,17 @@ class CatalogImportState(Base):
             ondelete="RESTRICT",
         ),
         CheckConstraint("failure_count >= 0", name="ck_catalog_import_failure_count"),
+        CheckConstraint("refresh_failure_count >= 0", name="ck_catalog_refresh_failure_count"),
+        ForeignKeyConstraint(
+            ["source_id", "report_content_hash"],
+            ["catalog_report_artifact.source_id", "catalog_report_artifact.content_hash"],
+            name="fk_checked_report",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "reviewed_report_hash"],
+            ["catalog_report_artifact.source_id", "catalog_report_artifact.content_hash"],
+            name="fk_reviewed_report",
+        ),
     )
     source_id: Mapped[int] = mapped_column(
         ForeignKey("catalog_source.id", ondelete="RESTRICT"), primary_key=True
@@ -960,6 +971,17 @@ class CatalogImportState(Base):
     etag: Mapped[Optional[str]] = mapped_column(String(512))
     last_modified: Mapped[Optional[str]] = mapped_column(String(512))
     checked_content_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    report_content_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    reviewed_report_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    report_etag: Mapped[Optional[str]] = mapped_column(String(512))
+    report_last_modified: Mapped[Optional[str]] = mapped_column(String(512))
+    refresh_last_checked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    refresh_last_successful_check_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    refresh_failure_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
 
 
 class CatalogSourcePayload(Base):
