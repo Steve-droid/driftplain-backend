@@ -136,3 +136,19 @@ B12 adds project-token `POST /execution/v1/projects/{id}/failure-claims` and ext
 `ci-command` with a failure-preserving diagnosis wrapper. Claims are permanent, unique per
 project/build/stage, and bound to the executed immutable revision. See
 [diagnosis support](../../agent/DIAGNOSIS-SUPPORT.md). No runtime is seeded or enabled.
+
+## B13 exact search and named setup
+
+`GET /execution/v1/candidates` adds optional positive `catalogModelId` and `observationId`
+filters for Explorer-to-CI intent and exact revalidation. They filter after comparable-group
+ranking; ranks/group counts retain their existing meaning. Neither field grants support or
+changes public catalog queries. Wrong combinations return an empty eligible set.
+
+Owner `ci-command` now also supports review and security. Review mounts its prepared diff
+into the review image; security mounts a bounded exported source tree read only into the
+scanner image, with the persisted CPU/memory/PID ceilings, read-only rootfs, dropped
+capabilities and no engine socket. Both require operator-pinned image digests, return the
+exact current revision and archive JSON while preserving a nonzero agent exit. Historical
+pre-B7 configs must be edited into a new task-contract revision before command generation.
+Other/tests/diagnosis keep their existing launcher and failure behavior. No migration, agent
+consumer change, live verification or runtime activation is introduced by B13.

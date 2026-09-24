@@ -64,6 +64,8 @@ def candidates(
     group: str | None = Query(None, max_length=64),
     offset: int = Query(0, ge=0, le=100000),
     limit: int = Query(100, ge=1, le=100),
+    catalog_model_id: int | None = Query(None, alias="catalogModelId", gt=0),
+    observation_id: int | None = Query(None, alias="observationId", gt=0),
 ):
     return service.candidates(
         db,
@@ -75,6 +77,8 @@ def candidates(
         group=group,
         offset=offset,
         limit=limit,
+        catalog_model_id=catalog_model_id,
+        observation_id=observation_id,
     )
 
 
@@ -160,20 +164,21 @@ def agent_config(
 
 
 @router.get("/projects/{project_id}/ci-command")
-def other_ci_command(project_id: int, db: Db, user: Owner):
+def execution_ci_command(project_id: int, db: Db, user: Owner):
     """Versioned task setup seam; images must be pinned by the operator."""
     from app.config import get_settings
     from app.selections.other_setup import build_other_command, build_test_stage
 
     project = service.owned_project(db, project_id, user)
     body = service.agent_config(db, project)
-    if body["taskType"] not in ("other", "test_generation", "ci_failure_diagnosis"):
-        raise HTTPException(422, "This setup seam supports Other, tests and diagnosis")
     settings = get_settings()
     from app.selections.diagnosis_setup import build_diagnosis_stage
+    from app.selections.named_setup import build_named_command, build_named_stage
+
+    named = body["taskType"] in ("ci_review", "security_analysis")
 
     try:
-        command = build_other_command(
+        command = (build_named_command if named else build_other_command)(
             body, settings.agent_image, settings.agent_security_image
         )
         diagnosis_stage = (
@@ -184,6 +189,11 @@ def other_ci_command(project_id: int, db: Db, user: Owner):
     except ValueError as error:
         raise HTTPException(409, str(error)) from None
     return {
+        **(
+            {"jenkinsStage": build_named_stage(command, body["taskType"])}
+            if named
+            else {}
+        ),
         **(
             {"jenkinsStage": diagnosis_stage}
             if body["taskType"] == "ci_failure_diagnosis"
@@ -197,9 +207,11 @@ def other_ci_command(project_id: int, db: Db, user: Owner):
         "executionRevisionId": body["executionRevisionId"],
         "executionMode": body["executionMode"],
         "command": command,
-        "launcherImage": settings.agent_image,
+        "launcherImage": settings.agent_security_image
+        if body["taskType"] == "security_analysis"
+        else settings.agent_image,
         "editorImage": settings.agent_security_image
-        if body["executionMode"] == "opencode"
+        if body["executionMode"] == "opencode" and not named
         else None,
     }
 
