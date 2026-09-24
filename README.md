@@ -128,3 +128,12 @@ immutable execution revisions. New explicit projects have no comparison baseline
 projects/agents retain their existing contract. The new runtime set starts empty pending
 exact task/profile verification; imported scores never enable execution. Migration head is
 `d7e8f9a0b1c2`. This release does not enable a provider, migrate production or deploy an agent.
+
+### Selected-run usage and cost (B15)
+
+The owner-scoped `/projects/{id}/usage/v1` dashboard read separates complete estimates,
+partial known charges, unavailable and legacy runs. Immutable exact-runtime rates are pinned
+to execution revisions and priced with Decimal; feedback never changes cost. Historical
+comparison amounts remain in compatibility APIs with their input/output-only limitations.
+See [the billing contract](app/billing/CONTRACT.md) for operator rate authority, returned-tier
+telemetry, additive migration and rollout order. No prices or pending runtimes are activated.

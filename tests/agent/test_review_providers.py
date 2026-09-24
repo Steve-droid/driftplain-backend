@@ -276,3 +276,27 @@ def test_provider_truncation_is_never_a_clean_review(model):
         body["candidates"][0]["finishReason"] = "MAX_TOKENS"
     with pytest.raises(CeilingExceeded):
         ReviewProvider(p, transport=Transport(body)).complete("s", "u", 100)
+
+
+@pytest.mark.parametrize(
+    "model,wire,expected",
+    [
+        ("gpt-5.6-sol", "default", "standard"),
+        ("gpt-5.6-sol", "priority", "priority"),
+        ("claude-sonnet-5", "standard", "standard"),
+        ("gemini-3.7-flash", "flex", "flex"),
+        ("gemini-3.7-flash", None, None),
+        ("gpt-5.6-sol", "unknown-tier", None),
+    ],
+)
+def test_reported_service_tier_is_preserved_without_guessing(model, wire, expected):
+    p = REVIEW_PROFILES[model]
+    body = response(p.provider, model)
+    if p.provider == "openai":
+        body["service_tier"] = wire
+    elif p.provider == "anthropic":
+        body["usage"]["service_tier"] = wire
+    else:
+        body["usageMetadata"]["serviceTier"] = wire
+    r = ReviewProvider(p, transport=Transport(body)).complete("system", "diff", 1024)
+    assert r.usage.service_tier == expected

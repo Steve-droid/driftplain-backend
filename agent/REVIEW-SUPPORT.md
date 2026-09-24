@@ -148,3 +148,9 @@ task/profile verifications are required before claiming the coverage target comp
   [GenerateContent](https://ai.google.dev/api/generate-content).
 
 These pages establish documented IDs/parameters, not account availability or live success.
+
+## B15 returned billing metadata
+
+Native responses retain the returned service tier and model ID for configurations advertising
+`billingContractVersion: 1`; older configurations omit both fields. Unknown tiers stay unknown.
+No request setting or runtime verification changes. See [billing contract](../app/billing/CONTRACT.md).

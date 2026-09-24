@@ -197,3 +197,8 @@ New project-scoped pre-invocation claims are documented in
 [diagnosis support](../agent/DIAGNOSIS-SUPPORT.md), including at-most-once crash semantics,
 protected repair paths, Jenkins integration, migration and six pending exact integrations.
 Historical B7 diagnosis envelopes remain compatible; they confer no executable support.
+
+B15 adds optional native `serviceTier` and `reportedModelId` telemetry, negotiated by
+`billingContractVersion: 1` on new configurations. Null fields are omitted for compatibility;
+requests, runtime verification and native/normalized category semantics stay unchanged.
+See [selected-run billing](billing/CONTRACT.md) for immutable rates, coverage and history.

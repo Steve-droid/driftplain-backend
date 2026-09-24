@@ -127,6 +127,14 @@ def test_claim_once_before_invocation_and_immutable(client, db_session, evidence
     assert read.status_code == 200
     assert read.json()["taskResult"]["failure"]["originalStatus"] == "FAILURE"
     assert "privatevalue" not in read.text
+    usage = client.get(f"/projects/{p['id']}/usage/v1", headers=h)
+    assert usage.status_code == 200
+    row = usage.json()["runs"][0]
+    assert row["task"] == "ci_failure_diagnosis"
+    assert row["taskResult"]["failure"]["originalStatus"] == "FAILURE"
+    assert row["taskResult"]["report"]["cause"] == "unknown"
+    assert row["usageStatus"] == "partial"
+    assert "privatevalue" not in usage.text
 
 
 @pytest.mark.parametrize(
@@ -199,6 +207,7 @@ def test_owner_scope_fix_reselection_setup_and_downgrade_guard(
     assert client.post(root + "/failure-claims", headers=ci, json=claim_body(p)).json()[
         "claimed"
     ]
+    db_session.commit()  # Release fixture read locks before migration DDL.
     with pytest.raises(Exception, match="Cannot discard diagnosis invocation history"):
         command.downgrade(Config("alembic.ini"), "e8f9a0b1c2d3")
     assert (

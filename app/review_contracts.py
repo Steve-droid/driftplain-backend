@@ -54,6 +54,16 @@ class ProviderUsage(BaseModel):
     reported_total_tokens: Count | None = None
     generation_requests: Literal[0, 1] = 1
     transport_retries: Literal[0] = 0
+    reported_model_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+        exclude_if=lambda value: value is None,
+    )
+    # Only the effective returned tier, never an assumed request/account default.
+    service_tier: (
+        Literal["standard", "priority", "flex", "scale", "ultrafast"] | None
+    ) = Field(default=None, exclude_if=lambda value: value is None)
 
     @field_validator(
         "version", "generation_requests", "transport_retries", mode="before"

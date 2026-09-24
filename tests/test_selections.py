@@ -653,6 +653,7 @@ def test_populated_b6_downgrade_refuses_data_loss(db_session, evidence):
     from alembic.config import Config
 
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    db_session.commit()
     with pytest.raises(RuntimeError, match="preserve"):
         command.downgrade(cfg, "c6d7e8f9a0b1")
     assert db_session.get(ExecutionRuntime, evidence[0][0].id)

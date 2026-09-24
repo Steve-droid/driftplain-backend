@@ -437,6 +437,7 @@ def new_revision(db, project, selection, rt, task_configuration=None):
     model = db.get(CatalogModel, rt.catalog_model_id)
     config = {
         "contractVersion": 2,
+        "billingContractVersion": 1,
         "taskType": selection.policy_snapshot["task"],
         "executionMode": rt.mode,
         "capability": rt.capability,
@@ -458,7 +459,9 @@ def new_revision(db, project, selection, rt, task_configuration=None):
         "policy": selection.policy_snapshot,
         **task_contract,
     }
+    from app.billing.rates import snapshot_for
     revision = ExecutionRevision(
+        billing_snapshot=snapshot_for(db, rt.id),
         project_id=project.id, selection_id=selection.id, configuration=config
     )
     db.add(revision)

@@ -456,7 +456,7 @@ def ingest_run(db: Session, project: Project, payload: CiRunIngest) -> CiRunOut:
     )
 
     if revision:
-        actual_cost = baseline_cost = savings = None  # B15 owns selected-model billing.
+        actual_cost = baseline_cost = savings = None  # Legacy columns stay null; /usage/v1 reads selected-run billing.
         if payload.task_result:
             try:
                 validate_result_configuration(payload.task_result, revision.configuration, revision.id, payload.gate)
@@ -467,7 +467,16 @@ def ingest_run(db: Session, project: Project, payload: CiRunIngest) -> CiRunOut:
         elif revision.configuration['taskType'] not in (CI_REVIEW, SECURITY_ANALYSIS):
             raise HTTPException(422, 'This task requires a versioned taskResult')
 
+    from app.billing.pricing import estimate
+    result = payload.task_result.model_dump(mode="json", by_alias=True) if payload.task_result else {}
+    billing = estimate(result.get("providerUsage"), result.get("runnerUsage"), revision.billing_snapshot, expected_model=revision.configuration["model"]["providerModelId"]) if revision else None
+    if billing and revision.billing_snapshot:
+        from datetime import UTC, datetime
+        if datetime.now(UTC) >= datetime.fromisoformat(revision.billing_snapshot['validUntil']):
+            billing.update(status='unavailable', knownCost=None, categories=[])
+            billing['reasons'].append('pinned_rate_schedule_expired_at_ingestion')
     run = CiRun(
+        billing=billing,
         project_id=project.id,
         jenkins_build_id=payload.jenkins_build_id,
         model_id=selected_model_id,

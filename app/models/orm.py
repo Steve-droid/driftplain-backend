@@ -808,6 +808,7 @@ class CiRun(Base):
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id", ondelete="CASCADE"))
     execution_revision_id: Mapped[Optional[int]] = mapped_column(Integer)
     task_result: Mapped[Optional[dict]] = mapped_column(JSONB(none_as_null=True))
+    billing: Mapped[Optional[dict]] = mapped_column(JSONB(none_as_null=True))
     jenkins_build_id: Mapped[Optional[str]] = mapped_column(String(255))
     model_id: Mapped[Optional[int]] = mapped_column(ForeignKey("model.id"))
     # The task the run performed — the project's task_type at ingest (one vocabulary

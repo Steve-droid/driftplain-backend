@@ -261,3 +261,25 @@ def test_explicit_cli_dispatch_and_post_exact_model_revision(
     assert (root / "src" / "a").read_text() == "base"
     monkeypatch.setenv("AGENT_IMAGE_TASK", "security")
     assert main([]) == 4
+
+
+@pytest.mark.parametrize("negotiated", [False, True])
+def test_b15_native_metadata_negotiation(tmp_path, negotiated):
+    c = configuration()
+    if negotiated:
+        c["billingContractVersion"] = 1
+    p = OTHER_PROFILES[("single_call", "gpt-5.6-sol")]
+    body = response(p.provider, p.model, '{"summary":"Fixture report"}')
+    body["service_tier"] = "default"
+    result, code = run_single_call(
+        c,
+        AgentConfig(workspace=str(tmp_path)),
+        diff="diff",
+        client=ReviewProvider(p, transport=Transport(body)),
+    )
+    assert code == 0
+    usage = result["taskResult"]["providerUsage"]
+    assert usage.get("serviceTier") == ("standard" if negotiated else None)
+    assert usage.get("reportedModelId") == (p.model if negotiated else None)
+    if not negotiated:
+        assert "serviceTier" not in usage and "reportedModelId" not in usage
