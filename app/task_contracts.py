@@ -370,8 +370,8 @@ def validate_result_configuration(
     c = TaskConfiguration.model_validate(configuration["taskConfiguration"])
     usage = result.provider_usage
     if usage:
-        if result.task != "ci_review" or result.mode != "single_call":
-            raise ValueError("B8 provider usage requires the review profile")
+        if result.task not in ("ci_review", "other") or result.mode != "single_call":
+            raise ValueError("Native usage requires a single-call profile")
         if (usage.provider, usage.profile_version) != (
             configuration["model"]["provider"], configuration["runtimeVersion"]
         ):
@@ -384,8 +384,8 @@ def validate_result_configuration(
             raise ValueError("Usage exceeding the configured ceiling cannot pass")
     runner = result.runner_usage
     if runner:
-        if (result.task, result.mode) != ("security_analysis", "opencode"):
-            raise ValueError("Runner usage requires the security profile")
+        if result.task not in ("security_analysis", "other") or result.mode != "opencode":
+            raise ValueError("Runner usage requires an OpenCode profile")
         if (runner.provider, runner.profile_version) != (
             configuration["model"]["provider"], configuration["runtimeVersion"]
         ):

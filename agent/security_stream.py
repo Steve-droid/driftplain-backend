@@ -8,6 +8,8 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 
+from agent.errors import AgentError
+
 KEYS = ("input", "output", "reasoning", "cache_read", "cache_write", "total")
 
 
@@ -44,6 +46,8 @@ def run_stream(
     max_bytes,
     max_context,
     max_output_tokens,
+    allowed_tools=frozenset({"read", "glob", "grep", "list"}),
+    tick=None,
 ):
     result = SecurityStream()
     started = time.monotonic()
@@ -98,7 +102,7 @@ def run_stream(
             elif typ == "tool_use":
                 result.tool_calls += 1
                 if (
-                    part.get("tool") not in {"read", "glob", "grep", "list"}
+                    part.get("tool") not in allowed_tools
                     or part.get("state", {}).get("status") != "completed"
                 ):
                     fail(4, "OpenCode used a forbidden or unsuccessful tool")
@@ -159,6 +163,15 @@ def run_stream(
                 os.set_blocking(pipe.fileno(), False)
                 sel.register(pipe, selectors.EVENT_READ)
             while sel.get_map() and not result.code:
+                if tick is not None:
+                    try:
+                        tick()
+                    except AgentError as error:
+                        fail(error.exit_code, str(error))
+                        break
+                    except (OSError, ValueError, TypeError, KeyError):
+                        fail(4, "Execution boundary callback failed")
+                        break
                 remaining = max_seconds - (time.monotonic() - started)
                 if remaining <= 0:
                     fail(124, "Security wall-clock ceiling exceeded", True)

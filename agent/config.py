@@ -102,6 +102,10 @@ class AgentConfig(BaseSettings):
 
     # ---- security mode: the OpenCode loop ----
     workspace: str = Field(default="/workspace", validation_alias="AGENT_WORKSPACE")
+    base_commit: str | None = Field(default=None, validation_alias="AGENT_BASE_COMMIT")
+    output_dir: str = Field(default="/outputs/other", validation_alias="AGENT_OUTPUT_DIR")
+    input_artifacts: str | None = Field(default=None, validation_alias="AGENT_INPUT_ARTIFACTS")
+    other_image: str | None = Field(default=None, validation_alias="AGENT_OTHER_IMAGE")
     opencode_bin: str = Field(default="opencode", validation_alias="AGENT_OPENCODE_BIN")
     # None → the bundled RealVuln auditor prompt (agent/prompts/security-auditor.txt).
     prompt_file: str | None = Field(default=None, validation_alias="AGENT_PROMPT_FILE")
