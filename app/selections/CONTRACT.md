@@ -152,3 +152,14 @@ exact current revision and archive JSON while preserving a nonzero agent exit. H
 pre-B7 configs must be edited into a new task-contract revision before command generation.
 Other/tests/diagnosis keep their existing launcher and failure behavior. No migration, agent
 consumer change, live verification or runtime activation is introduced by B13.
+
+## B14 Other authoring and Jenkins setup
+
+Other `ci-command` now adds a `jenkinsStage` while retaining `command`. The distinct
+Custom task stage captures single-call JSON, or OpenCode JSON plus result/patch artifacts,
+in job-private external scratch and archives them in `post { always { ... } }`. The shell
+preserves nonzero generation/validation exits. Prompt text and configured validation argv
+never enter the generated shell. Single-call containers apply persisted CPU/memory/process
+ceilings as well as the existing read-only rootfs, mounts and agent-enforced time/token bounds.
+Owner checks, operator digest requirements and exact enabled runtime checks remain unchanged.
+No config/result version, migration, executor implementation or runtime activation changes.

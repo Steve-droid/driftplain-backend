@@ -81,12 +81,16 @@ def test_other_setup_selects_launcher_and_worker_without_prompt_injection():
         assert ("docker.sock" in script) == (mode == "opencode")
 
 
+@pytest.mark.parametrize("mode", ["single_call", "opencode"])
 def test_owner_scoped_other_command_requires_digest_settings(
-    client, db_session, evidence, monkeypatch
+    client, db_session, evidence, monkeypatch, mode
 ):
     from app.config import get_settings
 
-    headers, ci, p = project(client, db_session, evidence)
+    headers, ci, p = project(
+        client, db_session, evidence, mode=mode,
+        config=writable_config() if mode == "opencode" else None,
+    )
     url = f"/execution/v1/projects/{p['id']}/ci-command"
     assert client.get(url, headers=ci).status_code == 401
     assert client.get(url, headers=headers).status_code == 409
@@ -104,5 +108,46 @@ def test_owner_scoped_other_command_requires_digest_settings(
     r = client.get(url, headers=headers)
     assert r.status_code == 200, r.text
     assert r.json()["executionRevisionId"] == p["executionRevisionId"]
-    assert r.json()["editorImage"] is None
+    assert (r.json()["editorImage"] is None) == (mode == "single_call")
+    assert "stage('Custom task')" in r.json()["jenkinsStage"]
+    assert "archiveArtifacts" in r.json()["jenkinsStage"]
     assert "-m agent" in r.json()["command"]
+
+
+@pytest.mark.parametrize("mode", ["single_call", "opencode"])
+def test_other_mode_forgery_and_disabled_runtime_preserve_revision(
+    client, db_session, evidence, mode
+):
+    from app.models import ExecutionRuntime
+
+    headers, _, p = project(
+        client, db_session, evidence, mode=mode,
+        config=writable_config() if mode == "opencode" else None,
+    )
+    url = f"/execution/v1/projects/{p['id']}"
+    opposite = "single_call" if mode == "opencode" else "opencode"
+    selection = {
+        "task": "other", "mode": opposite,
+        "runtimeId": p["configuration"]["runtimeId"],
+        "observationId": p["observationId"], "method": "supported_unranked",
+    }
+    config = writable_config() if opposite == "opencode" else {
+        "label": "Report", "systemPrompt": "Literal ${BUILD_TAG}", "instructions": "Explain",
+    }
+    response = client.patch(url, headers=headers, json={
+        "selection": selection, "taskConfiguration": config,
+    })
+    assert response.status_code == 422, response.text
+    runtime = db_session.get(ExecutionRuntime, selection["runtimeId"])
+    runtime.enabled = False
+    db_session.commit()
+    selection["mode"] = mode
+    assert (
+        client.patch(url, headers=headers, json={"selection": selection}).status_code
+        == 422
+    )
+    assert client.get(url + "/ci-command", headers=headers).status_code == 422
+    assert (
+        client.get(url, headers=headers).json()["executionRevisionId"]
+        == p["executionRevisionId"]
+    )
