@@ -460,6 +460,8 @@ def ingest_run(db: Session, project: Project, payload: CiRunIngest) -> CiRunOut:
         if payload.task_result:
             try:
                 validate_result_configuration(payload.task_result, revision.configuration, revision.id, payload.gate)
+                from app.selections.diagnosis import validate_claim
+                validate_claim(db, project, revision, payload)
             except ValueError as e:
                 raise HTTPException(422, str(e)) from None
         elif revision.configuration['taskType'] not in (CI_REVIEW, SECURITY_ANALYSIS):

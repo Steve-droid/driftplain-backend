@@ -22,6 +22,12 @@ ALLOWED_TOOLS = frozenset(
 
 def configuration(profile, cfg, output, steps):
     named = hasattr(profile, "language")
+    diagnosis = hasattr(profile, "propose_fix")
+    readonly = diagnosis and not profile.propose_fix
+    if diagnosis:
+        from agent.diagnosis import SYSTEM_PROMPT
+
+        cfg = cfg.model_copy(update={"system_prompt": SYSTEM_PROMPT})
     if named:
         from agent.test_generation import SYSTEM_PROMPT
 
@@ -33,13 +39,13 @@ def configuration(profile, cfg, output, steps):
         "glob": "allow",
         "grep": "allow",
         "list": "allow",
-        "edit": "allow",
-        "validation_validate": "allow",
+        "edit": "deny" if readonly else "allow",
+        "validation_validate": "deny" if readonly else "allow",
         "external_directory": "deny",
     }
     result["permission"] = permissions
     result["agent"].pop("audit")
-    result["agent"]["tests" if named else "custom"] = {
+    result["agent"]["tests" if named else "diagnosis" if diagnosis else "custom"] = {
         "mode": "primary",
         "model": profile.route,
         "steps": steps,
@@ -54,6 +60,8 @@ def configuration(profile, cfg, output, steps):
             "timeout": cfg.resources.max_seconds * 1000,
         }
     }
+    if readonly:
+        result["mcp"] = {}
     return result
 
 
@@ -90,6 +98,10 @@ def worker():
         from agent.test_generation import resolve_test_profile
 
         p = resolve_test_profile(negotiated)
+    elif negotiated["taskType"] == "ci_failure_diagnosis":
+        from agent.diagnosis import resolve_diagnosis_profile
+
+        p = resolve_diagnosis_profile(negotiated)
     else:
         p = resolve_other_profile(negotiated)
     cfg = TaskConfiguration.model_validate(config["taskConfiguration"])
@@ -107,7 +119,11 @@ def worker():
                 "--format",
                 "json",
                 "--agent",
-                "tests" if hasattr(p, "language") else "custom",
+                "tests"
+                if hasattr(p, "language")
+                else "diagnosis"
+                if hasattr(p, "propose_fix")
+                else "custom",
                 "--title",
                 "Driftplain test generation"
                 if hasattr(p, "language")

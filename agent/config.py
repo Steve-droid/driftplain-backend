@@ -105,6 +105,9 @@ class AgentConfig(BaseSettings):
     base_commit: str | None = Field(default=None, validation_alias="AGENT_BASE_COMMIT")
     output_dir: str = Field(default="/outputs/other", validation_alias="AGENT_OUTPUT_DIR")
     input_artifacts: str | None = Field(default=None, validation_alias="AGENT_INPUT_ARTIFACTS")
+    failed_stage: str | None = Field(default=None, validation_alias="DRIFTPLAIN_FAILED_STAGE")
+    upstream_status: str = Field(default="NOT_BUILT", validation_alias="DRIFTPLAIN_UPSTREAM_STATUS")
+    upstream_exit_status: int | None = Field(default=None, validation_alias="DRIFTPLAIN_UPSTREAM_EXIT_STATUS")
     other_image: str | None = Field(default=None, validation_alias="AGENT_OTHER_IMAGE")
     opencode_bin: str = Field(default="opencode", validation_alias="AGENT_OPENCODE_BIN")
     # None → the bundled RealVuln auditor prompt (agent/prompts/security-auditor.txt).

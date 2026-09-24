@@ -10,6 +10,7 @@ from app.auth.deps import get_current_user, get_db, require_project_token
 from app.ci.tokens import hash_token, mint_token
 from app.models import CiRun, ExecutionRevision, JenkinsConnection, Project, User
 from app.selections import service
+from app.selections.diagnosis import ClaimRequest
 from app.selections.schemas import ExplicitProjectCreate, ExplicitProjectUpdate
 from app.task_contracts import PROFILES, TASK_CONTRACT_VERSION
 
@@ -160,22 +161,34 @@ def agent_config(
 
 @router.get("/projects/{project_id}/ci-command")
 def other_ci_command(project_id: int, db: Db, user: Owner):
-    """Runtime-only B10 command seam; images must be pinned by the operator."""
+    """Versioned task setup seam; images must be pinned by the operator."""
     from app.config import get_settings
     from app.selections.other_setup import build_other_command, build_test_stage
 
     project = service.owned_project(db, project_id, user)
     body = service.agent_config(db, project)
-    if body["taskType"] not in ("other", "test_generation"):
-        raise HTTPException(422, "This setup seam supports Other and test generation")
+    if body["taskType"] not in ("other", "test_generation", "ci_failure_diagnosis"):
+        raise HTTPException(422, "This setup seam supports Other, tests and diagnosis")
     settings = get_settings()
+    from app.selections.diagnosis_setup import build_diagnosis_stage
+
     try:
         command = build_other_command(
             body, settings.agent_image, settings.agent_security_image
         )
+        diagnosis_stage = (
+            build_diagnosis_stage(command, body)
+            if body["taskType"] == "ci_failure_diagnosis"
+            else None
+        )
     except ValueError as error:
         raise HTTPException(409, str(error)) from None
     return {
+        **(
+            {"jenkinsStage": diagnosis_stage}
+            if body["taskType"] == "ci_failure_diagnosis"
+            else {}
+        ),
         **(
             {"jenkinsStage": build_test_stage(command)}
             if body["taskType"] == "test_generation"
@@ -189,3 +202,10 @@ def other_ci_command(project_id: int, db: Db, user: Owner):
         if body["executionMode"] == "opencode"
         else None,
     }
+
+
+@router.post("/projects/{project_id}/failure-claims")
+def failure_claim(payload: ClaimRequest, project: TokenProject, db: Db):
+    from app.selections.diagnosis import claim
+
+    return claim(db, project, payload)

@@ -6,7 +6,11 @@ import shlex
 
 def build_execution_command(configuration, launcher_image, editor_image):
     """Trusted node shell fragment; no prompts/commands from the project enter shell text."""
-    if configuration["taskType"] not in ("other", "test_generation"):
+    if configuration["taskType"] not in (
+        "other",
+        "test_generation",
+        "ci_failure_diagnosis",
+    ):
         raise ValueError("Writable or custom configuration required")
     if configuration["taskType"] == "test_generation":
         from app.task_contracts import TaskConfiguration
@@ -27,9 +31,17 @@ def build_execution_command(configuration, launcher_image, editor_image):
     credential = configuration["model"]["credentialEnvVar"]
     if not re.fullmatch("[A-Z][A-Z0-9_]{0,127}", credential):
         raise ValueError("Invalid credential variable")
+    diagnosis = configuration["taskType"] == "ci_failure_diagnosis"
     common = """  -e MODELMATCH_API_URL -e MODELMATCH_PROJECT_ID -e MODELMATCH_CI_TOKEN \\
   -e MODELMATCH_EXECUTION_CONFIG=true -e MODELMATCH_POST_RESULT=true -e BUILD_TAG \\
 """
+    if diagnosis:
+        common += "  -e DRIFTPLAIN_FAILED_STAGE -e DRIFTPLAIN_UPSTREAM_STATUS -e DRIFTPLAIN_UPSTREAM_EXIT_STATUS \\\n"
+    base = (
+        'export AGENT_BASE_COMMIT="${AGENT_BASE_COMMIT:?Exact upstream commit required}"\n'
+        if diagnosis
+        else 'export AGENT_BASE_COMMIT="$(git rev-parse HEAD)"\n'
+    )
     diff = (
         " --diff /inputs/change.diff"
         if configuration["taskConfiguration"]["inputs"]["diff"]
@@ -49,8 +61,9 @@ docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \\
     return (
         """# Trusted launcher only: it controls sibling containers. Never mount this socket into editor/validation.
 # DRIFTPLAIN_SCRATCH must be a fresh absolute directory outside the repository; archive result/* afterward.
-export AGENT_BASE_COMMIT="$(git rev-parse HEAD)"
-docker run --rm --user "$(id -u):$(id -g)" --group-add "$(stat -c %g /var/run/docker.sock)" \\
+"""
+        + base
+        + """docker run --rm --user "$(id -u):$(id -g)" --group-add "$(stat -c %g /var/run/docker.sock)" \\
   -v /var/run/docker.sock:/var/run/docker.sock \\
   -v "$PWD:$PWD:ro" -v "$DRIFTPLAIN_SCRATCH:$DRIFTPLAIN_SCRATCH" \\
   -v "$DRIFTPLAIN_INPUTS:/inputs:ro" \\

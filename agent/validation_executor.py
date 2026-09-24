@@ -95,6 +95,10 @@ class DockerValidationExecutor:
         if result is None:
             return ValidationCheck(**common, status="unavailable", reason=reason), None
         raw = result.output
+        if getattr(self, "redactor", None):
+            raw = self.redactor(raw.decode("utf-8", errors="replace")).encode()
+            limit = min(self.resources.max_output_bytes, max_bytes) if max_bytes is not None else self.resources.max_output_bytes
+            raw = raw[:limit]
         path = Path(out) / f"validation-{command.id}.log"
         path.write_bytes(raw)
         artifact = Artifact(

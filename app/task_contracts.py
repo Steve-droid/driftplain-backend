@@ -147,6 +147,40 @@ class TestEvidence(Contract):
     existing_identity_sha256: Digest
 
 
+class DiagnosisConfiguration(Contract):
+    stage: str = Field(
+        min_length=1, max_length=100, pattern=r"^[A-Za-z0-9][A-Za-z0-9 _.-]*$"
+    )
+    log_artifact: Path
+
+    @model_validator(mode="after")
+    def upstream_only(self):
+        from app.diagnosis_contracts import AGENT_STAGE
+
+        if self.stage.casefold().startswith("driftplain") or self.stage == AGENT_STAGE:
+            raise ValueError("Cannot diagnose an agent stage")
+        return self
+
+
+class FailureContext(Contract):
+    build_id: str = Field(min_length=1, max_length=255)
+    stage: str = Field(min_length=1, max_length=100)
+    commit: Commit
+    exit_status: int | None = Field(default=None, ge=0, le=255)
+    original_status: Literal["FAILURE", "SUCCESS", "ABORTED", "NOT_BUILT"]
+    log_excerpt: str = Field(default="", max_length=8192)
+    claim_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
+
+    @model_validator(mode="after")
+    def redacted(self):
+        from app.diagnosis_contracts import redact
+
+        self.log_excerpt = redact(self.log_excerpt)
+        if len(self.log_excerpt.encode()) > 8192:
+            raise ValueError("Redacted failure excerpt exceeds byte ceiling")
+        return self
+
+
 class TaskConfiguration(Contract):
     label: str | None = Field(default=None, min_length=1, max_length=100)
     system_prompt: str | None = Field(default=None, min_length=1, max_length=8000)
@@ -156,6 +190,10 @@ class TaskConfiguration(Contract):
     write_paths: list[Path] = Field(default_factory=list, max_length=30)
     validation_commands: list[ValidationCommand] = Field(
         default_factory=list, max_length=5
+    )
+
+    diagnosis: DiagnosisConfiguration | None = Field(
+        default=None, exclude_if=lambda v: v is None
     )
 
     test_environment: TestEnvironment | None = Field(
@@ -195,6 +233,19 @@ def configure(task, mode, config=None, language=None, propose_fix=False):
         from app.test_generation_contracts import validate_test_environment
 
         validate_test_environment(config, language)
+    if config.diagnosis:
+        if (
+            task != "ci_failure_diagnosis"
+            or config.inputs.diff
+            or config.inputs.artifacts
+        ):
+            raise ValueError(
+                "Diagnosis uses selected files and its single configured log artifact"
+            )
+        if propose_fix:
+            from app.diagnosis_contracts import validate_fix_paths
+
+            validate_fix_paths(config.write_paths)
     if mode == "single_call":
         # Persist the actual one-generation limit, independent of prompt content.
         config = config.model_copy(
@@ -234,6 +285,12 @@ class Artifact(Contract):
 
 
 class Report(Contract):
+    cause: Literal["repository", "external", "unknown"] | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
+    no_patch_reason: str | None = Field(
+        default=None, min_length=1, max_length=2000, exclude_if=lambda v: v is None
+    )
     summary: str = Field(min_length=1, max_length=8000)
     uncertainty: str | None = Field(default=None, max_length=2000)
     next_steps: list[Annotated[str, Field(min_length=1, max_length=1000)]] = Field(
@@ -302,6 +359,7 @@ class TaskResult(Contract):
     report: Report | None = None
     artifacts: list[Artifact] = Field(default_factory=list, max_length=30)
     validations: list[ValidationCheck] = Field(default_factory=list, max_length=5)
+    failure: FailureContext | None = Field(default=None, exclude_if=lambda v: v is None)
     # B8 additive evidence; persisted inside the already immutable JSON envelope.
     provider_usage: ProviderUsage | None = None
     runner_usage: RunnerUsage | None = Field(
@@ -310,6 +368,21 @@ class TaskResult(Contract):
 
     @model_validator(mode="after")
     def consistent_result(self):
+        if self.failure and self.report:
+            from app.diagnosis_contracts import redact
+
+            self.report = self.report.model_copy(
+                update={
+                    "summary": redact(self.report.summary),
+                    "uncertainty": redact(self.report.uncertainty)
+                    if self.report.uncertainty
+                    else None,
+                    "next_steps": [redact(x) for x in self.report.next_steps],
+                    "no_patch_reason": redact(self.report.no_patch_reason)
+                    if self.report.no_patch_reason
+                    else None,
+                }
+            )
         if self.provider_usage and self.runner_usage:
             raise ValueError("Native and runner usage cannot coexist")
         if self.execution_status != "completed" and not self.execution_reason:
@@ -399,6 +472,69 @@ def validate_result_configuration(
     if configuration.get("taskContractVersion") != 1:
         raise ValueError("This revision predates the task result contract")
     c = TaskConfiguration.model_validate(configuration["taskConfiguration"])
+    if result.failure:
+        if result.task != "ci_failure_diagnosis" or not c.diagnosis or gate != "fail":
+            raise ValueError(
+                "Failure evidence requires configured diagnosis and a failing gate"
+            )
+        if result.failure.commit != result.base_commit:
+            raise ValueError("Failure commit differs from executed base")
+        if result.execution_status == "completed":
+            if (
+                not result.failure.claim_id
+                or result.failure.original_status != "FAILURE"
+                or result.failure.exit_status in (None, 0)
+                or not result.failure.log_excerpt
+                or result.failure.stage != c.diagnosis.stage
+            ):
+                raise ValueError(
+                    "Completed diagnosis requires claimed upstream failure evidence"
+                )
+            if (
+                not result.report
+                or not result.report.uncertainty
+                or not result.report.cause
+                or not result.report.next_steps
+            ):
+                raise ValueError(
+                    "Diagnosis requires explicit cause classification and uncertainty"
+                )
+            import hashlib
+
+            evidence = next(
+                (a for a in result.artifacts if a.id == "failure-log"), None
+            )
+            raw = result.failure.log_excerpt.encode()
+            if (
+                result.report.evidence_artifact_ids != ["failure-log"]
+                or evidence is None
+                or evidence.kind != "other"
+                or evidence.size_bytes != len(raw)
+                or evidence.sha256 != hashlib.sha256(raw).hexdigest()
+            ):
+                raise ValueError(
+                    "Diagnosis evidence must bind the retained redacted log excerpt"
+                )
+            if (
+                not result.runner_usage
+                or result.runner_usage.attempts != 1
+                or result.runner_usage.completed_steps < 1
+            ):
+                raise ValueError(
+                    "Completed diagnosis requires captured runner evidence"
+                )
+            if not result.patch and not result.report.no_patch_reason:
+                raise ValueError("No patch requires an explanation")
+            if result.patch and result.report.cause != "repository":
+                raise ValueError("External or unknown causes cannot propose a patch")
+        if result.patch:
+            from app.diagnosis_contracts import validate_fix_paths
+
+            validate_fix_paths([f.path for f in result.patch.files])
+            if any(f.operation != "modified" for f in result.patch.files):
+                raise ValueError("Repair v1 modifies existing production files only")
+    elif c.diagnosis and result.task == "ci_failure_diagnosis":
+        raise ValueError("Configured diagnosis requires failure context")
     usage = result.provider_usage
     if usage:
         if result.task not in ("ci_review", "other") or result.mode != "single_call":
@@ -421,7 +557,13 @@ def validate_result_configuration(
     runner = result.runner_usage
     if runner:
         if (
-            result.task not in ("security_analysis", "other", "test_generation")
+            result.task
+            not in (
+                "security_analysis",
+                "other",
+                "test_generation",
+                "ci_failure_diagnosis",
+            )
             or result.mode != "opencode"
         ):
             raise ValueError("Runner usage requires an OpenCode profile")
@@ -432,7 +574,11 @@ def validate_result_configuration(
             raise ValueError("Runner usage differs from executed provider profile")
         if result.execution_status == "completed" and not runner.complete:
             raise ValueError("Completed security requires complete runner events")
-        if gate == "pass" and (
+        if (
+            gate == "pass"
+            or result.task == "ci_failure_diagnosis"
+            and result.execution_status == "completed"
+        ) and (
             max(runner.captured_tokens, runner.reported_total_tokens or 0)
             > c.resources.max_tokens
             or runner.completed_steps > c.resources.max_iterations

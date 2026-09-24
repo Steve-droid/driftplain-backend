@@ -173,7 +173,7 @@ class DisposableWorkspace:
         self.git([*args, "add", "--all", "--force", "--", "."])
         return self.git([*args, "write-tree"]).decode().strip()
 
-    def capture(self, out):
+    def capture(self, out, check_changes=None):
         current = inspect_tree(
             self.path,
             self.cfg.resources.max_output_bytes,
@@ -201,6 +201,8 @@ class DisposableWorkspace:
             return None, None
         if len(changed) > 100:
             raise CeilingExceeded("output", "Too many changed files")
+        if check_changes:
+            check_changes(changed)
         tree = self.tree()
         raw = self.git(
             [

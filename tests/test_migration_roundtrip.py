@@ -27,6 +27,7 @@ TEST_DB = "modelmatch_migration_test"
 # Every table the initial migration must create (architecture.md §5 + the
 # llm_usage tally added in S2). The backlog names the starred ones explicitly.
 EXPECTED_TABLES = {
+    "diagnosis_claim",
     "execution_runtime", "model_selection", "execution_revision",
     "user",
     "google_login_nonce",
