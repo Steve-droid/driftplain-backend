@@ -40,8 +40,8 @@ router = APIRouter(prefix="/projects", tags=["chat"], dependencies=[Depends(requ
 # failure the fake client's empty replay would otherwise produce.
 OFFLINE_ANSWER = (
     "The grounded assistant is offline on this deployment: no language model is "
-    "configured, so I can't look anything up right now. Your savings dashboard, "
-    "findings and CI-run ingestion keep working — the numbers there are authoritative."
+    "configured, so I can't look anything up right now. Your usage dashboard, "
+    "findings and CI-run ingestion keep working. Cost estimates show their coverage and limitations."
 )
 
 
@@ -75,8 +75,9 @@ def get_chat_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_chat_user),
 ) -> ChatHistoryResponse:
-    _require_owned_project(db, project_id, current_user)
-    pipeline.ensure_opener(db, project_id, current_user)  # seed opener if empty (no LLM)
+    project = _require_owned_project(db, project_id, current_user)
+    if not project.execution_revision_id:
+        pipeline.ensure_opener(db, project_id, current_user)  # seed opener if empty (no LLM)
     messages = db.scalars(
         select(ChatMessage)
         .where(ChatMessage.project_id == project_id)
@@ -121,6 +122,12 @@ def post_chat(
     client: LLMClient | None = Depends(get_chat_llm_client),
     engine: Engine = Depends(get_chat_engine),
 ) -> ChatAnswerResponse:
+    project = _require_owned_project(db, project_id, current_user)
+    if project.execution_revision_id:
+        return ChatAnswerResponse(
+            answer="The legacy assistant is offline for explicit selections. Use the usage dashboard for execution attribution and cost coverage.",
+            ok=False, refused=False, retrieval_trace=[], debug=None,
+        )
     if client is None:
         # Offline deployment: same 404/403 contract, then the honest note. Nothing is
         # persisted or metered — no work was done on the question.

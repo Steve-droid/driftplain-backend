@@ -48,8 +48,8 @@ Project `X-CI-Token`:
 The new project has no recommendation option or baseline. Selected-model legacy billing is
 not guessed: its cost/baseline/savings stay null until B15. Existing `/projects` list/detail
 reads gain nullable option/baseline IDs plus `executionRevisionId`; existing legacy values
-stay unchanged. The legacy create/recommendation workflow remains a compatibility surface
-until its planned retirement in B17. It cannot mutate an explicit project back to legacy.
+stay unchanged. B17 retires public legacy create/recommendation actions with authenticated HTTP 410.
+Legacy selection/task/baseline PATCH also returns 410; use explicit selection for re-picks. It cannot mutate an explicit project back to legacy.
 Legacy project PATCH may rename/edit explicit preferences through the same revision service;
 selection/baseline/task changes must use the explicit API. Legacy agent-config and ci-setup
 reject explicit projects instead of generating an incompatible old-agent command. B7–B14

@@ -5,10 +5,15 @@ New releases publish as `ghcr.io/steve-droid/driftplain-agent` and
 sequence. The old `modelmatch-agent` and `modelmatch-agent-security` packages remain available.
 See the [image naming policy](https://github.com/Steve-droid/driftplain/blob/main/IMAGE-NAMING.md).
 
-The product's **proof**: a standalone image (built from this repo) that runs in the
-**user's** Jenkins on the **user's** key (BYOK), does real LLM work on their code, and
-sets the **pass/fail gate in CI**. It **never edits the repo**. Since `1.1.0` there are two
-tasks, selected per project, each shipped as its own image from the same `agent/` code:
+The agents run in the **user's Jenkins** on the **user's key** (BYOK) and set the
+CI gate. Legacy review/security modes are read-only. The published versioned consumers
+also implement Other single-call/OpenCode, named test generation and diagnosis with optional
+repair in disposable checkouts; these expanded exact profiles remain **pending live verification**.
+No registry entry or benchmark score activates them. See [review](REVIEW-SUPPORT.md),
+[security](SECURITY-SUPPORT.md), [Other](OTHER-SUPPORT.md),
+[tests](TEST-GENERATION-SUPPORT.md) and [diagnosis](DIAGNOSIS-SUPPORT.md).
+
+The table below describes the legacy two-task interface; sizes are historical measurements.
 
 | Task | Image (Dockerfile) | What runs | Gate | Runtime |
 |---|---|---|---|---|
@@ -37,7 +42,7 @@ combined image was 997 MB, the v1 review image 291 MB):
   from a read-only checkout and posting a fixture critical finding with cache reads.
 
 > How the agent fits the whole product — the metadata-only Jenkins connection, the two
-> Jenkins credentials it reads, and the savings/quality loop it feeds — is in the
+> Jenkins credentials it reads, and the reported usage/results it feeds — is in the
 > [HLD §3b](../../docs/planning/hld.md). The
 > run-time config contract with the backend is **HLD §3b.1**.
 
@@ -72,15 +77,17 @@ One JSON object — the `/ci-runs` contract plus `cwe` per finding (`null` for r
  "gate":"fail","gateReason":"1 finding(s) at blocking severity (critical)"}
 ```
 
-`tokensIn` / `tokensOut` are what the user's key paid for: for the security loop, the sum
+`tokensIn` / `tokensOut` are reported compatibility counters, not an invoice: for the security loop, the sum
 of OpenCode's `step_finish` **`input` + `output`** over every attempt — **never `tokens.total`**,
 which includes cache reads and overstated one measured run threefold. Since `1.1.1`,
 `cacheReadTokens` carries the separate cache-read sum over every security attempt
 (`0` when none were read; `null` for review runs). It is included in stdout and the
-agent's POST; backend `1.0.17` or newer accepts and stores it, **never prices it**.
+agent's POST; the legacy backend path accepts and stores it without pricing it in the old amounts.
 Cache reads, steps, attempts, refusals, coverage and wall-clock also go to **stderr** as one
-`{"agent_security_summary": …}` line. Provider-reported cost is never posted: both sides of
-the savings figure are `tokens × catalog price`.
+`{"agent_security_summary": …}` line. Provider-reported cost is never posted. Legacy stored calculations cover input/output only;
+new negotiated telemetry feeds [selected-run accounting](../app/billing/CONTRACT.md) with
+explicit complete/partial/unavailable coverage and reviewed rates. OpenCode hidden retries
+prevent complete consumption claims.
 
 Everything else on stderr is structured too (the per-request LLM log line, `agent_note`
 lines, and on failure the **last line** `{"error": …, "detail": …}`) — never a traceback,

@@ -6,6 +6,7 @@ accept or store any secret: a metadata-only PUT succeeds, sending a secret is a 
 and nothing lands in the SecretStore. Plus owner-scoping and idempotent upsert.
 """
 
+from tests.legacy_history import post as legacy_post
 from sqlalchemy import func, select
 
 from app.catalog.seed import load_seed
@@ -25,13 +26,11 @@ def _register(client, db_session, email: str) -> tuple[dict[str, str], int]:
 
 
 def _make_project(client, headers) -> int:
-    body = client.post(
-        "/recommendations",
+    body = legacy_post(client, "/recommendations",
         json={"taskTypes": ["ci_review"], "budgetSensitivity": "high"},
         headers=headers,
     ).json()
-    return client.post(
-        "/projects",
+    return legacy_post(client, "/projects",
         json={
             "name": "p",
             "selectedOptionId": body["shortlist"][0]["recommendationOptionId"],

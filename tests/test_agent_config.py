@@ -11,6 +11,7 @@ What matters:
 - the response never carries a token or a key.
 """
 
+from tests.legacy_history import post as legacy_post
 from sqlalchemy import select
 
 from app.catalog.seed import load_seed
@@ -26,13 +27,11 @@ from tests.test_ci import (
 
 
 def _make_security_project(client, headers) -> int:
-    body = client.post(
-        "/recommendations",
+    body = legacy_post(client, "/recommendations",
         json={"taskTypes": [SECURITY_ANALYSIS], "budgetSensitivity": "high"},
         headers=headers,
     ).json()
-    return client.post(
-        "/projects",
+    return legacy_post(client, "/projects",
         json={
             "name": "sec",
             "selectedOptionId": body["shortlist"][0]["recommendationOptionId"],
@@ -169,17 +168,15 @@ def test_agent_config_ignores_user_jwt(client, db_session):
     assert client.get(f"/projects/{pid}/agent-config", headers=headers).status_code == 401
 
 
-def test_agent_config_follows_a_repick_to_the_other_task(client, db_session):
-    """PATCH re-pick from a review option to a security option flips task + task
-    type (the task follows the option) — the agent sees the change on its next run."""
+def test_agent_config_preserved_when_legacy_repick_is_retired(client, db_session):
+    """Retired weighted re-picks cannot change an existing agent configuration."""
     load_seed(db_session)
     headers, _ = _register(client, db_session, "ac_repick@example.com")
     pid = _make_project(client, headers)
     token = _mint_token(client, headers, pid)
     assert client.get(f"/projects/{pid}/agent-config", headers={"X-CI-Token": token}).json()["task"] == "review"
 
-    rec = client.post(
-        "/recommendations",
+    rec = legacy_post(client, "/recommendations",
         json={"taskTypes": [SECURITY_ANALYSIS], "budgetSensitivity": "high"},
         headers=headers,
     ).json()
@@ -191,11 +188,10 @@ def test_agent_config_follows_a_repick_to_the_other_task(client, db_session):
         },
         headers=headers,
     )
-    assert resp.status_code == 200
-    assert resp.json()["taskType"] == SECURITY_ANALYSIS
-    assert db_session.get(Project, pid).task_type == SECURITY_ANALYSIS
+    assert resp.status_code == 410
+    assert db_session.get(Project, pid).task_type == "ci_review"
     body = client.get(f"/projects/{pid}/agent-config", headers={"X-CI-Token": token}).json()
-    assert body["task"] == "security" and body["model"]["provider"] == "deepseek"
+    assert body["task"] == "review"
 
 
 def test_agent_config_route_is_registered_next_to_ci_runs(client):

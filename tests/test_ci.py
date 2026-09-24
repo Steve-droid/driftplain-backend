@@ -9,6 +9,7 @@ The guarantees that matter:
   build id → 409. Ingest needs no JWT at all.
 """
 
+from tests.legacy_history import post as legacy_post
 from pathlib import Path
 
 import pytest
@@ -51,14 +52,12 @@ def _register(client, db_session, email: str) -> tuple[dict[str, str], int]:
 
 def _make_project(client, headers) -> int:
     # ci_review is the demo path: the pick is Claude Haiku 4.5 and the configured
-    # baseline (Claude Sonnet 4.5) is in the group, so savings are real (selected != baseline).
-    body = client.post(
-        "/recommendations",
+    # baseline (Claude Sonnet 4.5) is in the group, so a historical comparison can be computed.
+    body = legacy_post(client, "/recommendations",
         json={"taskTypes": ["ci_review"], "budgetSensitivity": "high"},
         headers=headers,
     ).json()
-    return client.post(
-        "/projects",
+    return legacy_post(client, "/projects",
         json={
             "name": "p",
             "selectedOptionId": body["shortlist"][0]["recommendationOptionId"],
@@ -408,13 +407,11 @@ _SECURITY_SANDBOX = (
 
 
 def _make_security_project(client, headers) -> int:
-    body = client.post(
-        "/recommendations",
+    body = legacy_post(client, "/recommendations",
         json={"taskTypes": [SECURITY_ANALYSIS], "budgetSensitivity": "high"},
         headers=headers,
     ).json()
-    return client.post(
-        "/projects",
+    return legacy_post(client, "/projects",
         json={
             "name": "sec",
             "selectedOptionId": body["shortlist"][0]["recommendationOptionId"],
