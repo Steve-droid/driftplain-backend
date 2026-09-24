@@ -162,12 +162,12 @@ def agent_config(
 def other_ci_command(project_id: int, db: Db, user: Owner):
     """Runtime-only B10 command seam; images must be pinned by the operator."""
     from app.config import get_settings
-    from app.selections.other_setup import build_other_command
+    from app.selections.other_setup import build_other_command, build_test_stage
 
     project = service.owned_project(db, project_id, user)
     body = service.agent_config(db, project)
-    if body["taskType"] != "other":
-        raise HTTPException(422, "This setup seam supports Other only")
+    if body["taskType"] not in ("other", "test_generation"):
+        raise HTTPException(422, "This setup seam supports Other and test generation")
     settings = get_settings()
     try:
         command = build_other_command(
@@ -176,6 +176,11 @@ def other_ci_command(project_id: int, db: Db, user: Owner):
     except ValueError as error:
         raise HTTPException(409, str(error)) from None
     return {
+        **(
+            {"jenkinsStage": build_test_stage(command)}
+            if body["taskType"] == "test_generation"
+            else {}
+        ),
         "executionRevisionId": body["executionRevisionId"],
         "executionMode": body["executionMode"],
         "command": command,

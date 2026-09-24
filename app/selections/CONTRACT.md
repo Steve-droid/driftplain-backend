@@ -121,3 +121,13 @@ pinned evidence. Holds are deliberately indefinite; B6 adds no release/purge/ret
 Migration `d7e8f9a0b1c2` is additive after `c6d7e8f9a0b1`. Existing rows retain null revision
 bridges and their prior options/tokens/history. An empty B6 downgrade is reversible; a populated
 runtime/selection/revision downgrade aborts before DDL. No production migration is authorized.
+
+## B11 named-test setup extension
+
+`GET /execution/v1/projects/{id}/ci-command` now accepts `test_generation` in addition to
+Other. It is owner-scoped, checks the current enabled runtime, requires operator image
+digests and the reviewed task environment, and adds `jenkinsStage` for named tests. Its
+command exits nonzero on failed/unavailable tests and archives external job artifacts.
+Python retains the TestGenEval Extra policy; Node remains unranked. No runtime row is seeded.
+Historical executed revisions still accept results after re-pick/disable. Full picker and
+preview UI remain B13/B14. See [test-generation support](../../agent/TEST-GENERATION-SUPPORT.md).

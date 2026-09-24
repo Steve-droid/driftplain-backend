@@ -44,14 +44,19 @@ def explicit_main(config, path):
             raise AgentConfigError("Security execution does not accept --diff")
         resolve_security_profile(body)
         result, code = run_security_execution(body, config)
-    elif body["taskType"] == "other":
+    elif body["taskType"] in ("other", "test_generation"):
         from agent.other_execution import resolve_other_profile, run_single_call
         from agent.other_opencode import run_opencode
 
         _check_image_task(
             "review"
         )  # trusted launcher/single-call image, never the security CLI
-        resolve_other_profile(body)
+        if body["taskType"] == "test_generation":
+            from agent.test_generation import resolve_test_profile
+
+            resolve_test_profile(body)
+        else:
+            resolve_other_profile(body)
         cfg = TaskConfiguration.model_validate(body["taskConfiguration"])
         seconds = min(config.max_seconds, cfg.resources.max_seconds)
         started = time.monotonic()

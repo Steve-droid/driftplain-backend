@@ -4,10 +4,18 @@ import re
 import shlex
 
 
-def build_other_command(configuration, launcher_image, editor_image):
+def build_execution_command(configuration, launcher_image, editor_image):
     """Trusted node shell fragment; no prompts/commands from the project enter shell text."""
-    if configuration["taskType"] != "other":
-        raise ValueError("Other configuration required")
+    if configuration["taskType"] not in ("other", "test_generation"):
+        raise ValueError("Writable or custom configuration required")
+    if configuration["taskType"] == "test_generation":
+        from app.task_contracts import TaskConfiguration
+        from app.test_generation_contracts import validate_test_environment
+
+        validate_test_environment(
+            TaskConfiguration.model_validate(configuration["taskConfiguration"]),
+            configuration["policy"]["language"],
+        )
     mode = configuration["executionMode"]
     if mode not in ("single_call", "opencode"):
         raise ValueError("Unsupported mode")
@@ -52,4 +60,20 @@ docker run --rm --user "$(id -u):$(id -g)" --group-add "$(stat -c %g /var/run/do
 """
         + common
         + f"  -e {credential} -e AGENT_OTHER_IMAGE={shlex.quote(editor_image)} \\\n  --entrypoint /venv/bin/python {shlex.quote(launcher_image)} -m agent{diff}\n"
+    )
+
+
+# Compatibility import for the B10 setup seam.
+build_other_command = build_execution_command
+
+
+def build_test_stage(command):
+    """Jenkins preserves the nonzero agent exit and archives evidence even on failure."""
+    return (
+        "stage('Generate tests') {\n  steps {\n    sh '''set -eu\n"
+        + command.rstrip()
+        + ' > "$DRIFTPLAIN_SCRATCH/result.json"\n'
+        + "'''\n  }\n  post {\n    always {\n      dir(env.DRIFTPLAIN_SCRATCH) {\n"
+        + "        archiveArtifacts artifacts: 'result/**,result.json', allowEmptyArchive: true\n"
+        + "      }\n    }\n  }\n}\n"
     )

@@ -55,7 +55,12 @@ class DockerEditor:
         self.image = image
 
     def run(self, work, configuration, prompt, local, validate, remaining):
-        p = OTHER_PROFILES[("opencode", configuration["model"]["providerModelId"])]
+        if configuration["taskType"] == "test_generation":
+            from agent.test_generation import profile
+
+            p = profile(configuration)
+        else:
+            p = OTHER_PROFILES[("opencode", configuration["model"]["providerModelId"])]
         cfg = work.cfg
         r = cfg.resources
         name = "driftplain-editor-" + uuid.uuid4().hex
@@ -186,12 +191,33 @@ class DockerEditor:
 def run_opencode(
     configuration, local, *, diff=None, artifact_root=None, runner=None, executor=None
 ):
-    p = OTHER_PROFILES[("opencode", configuration["model"]["providerModelId"])]
+    named = configuration["taskType"] == "test_generation"
+    if named:
+        from agent import test_generation as task
+        from agent.test_validation import TestValidationExecutor
+        from app.test_generation_contracts import validate_test_environment
+
+        p = task.profile(configuration)
+    else:
+        p = OTHER_PROFILES[("opencode", configuration["model"]["providerModelId"])]
     cfg = TaskConfiguration.model_validate(configuration["taskConfiguration"])
     if runner is None:
-        p = resolve_other_profile(configuration)
+        p = (
+            task.resolve_test_profile(configuration)
+            if named
+            else resolve_other_profile(configuration)
+        )
         runner = DockerEditor(local.other_image)
-    executor = executor or DockerValidationExecutor(cfg.resources)
+    if named:
+        try:
+            validate_test_environment(cfg, p.language)
+        except ValueError as e:
+            raise AgentConfigError(str(e)) from None
+    executor = executor or (
+        TestValidationExecutor(cfg, p.language)
+        if named
+        else DockerValidationExecutor(cfg.resources)
+    )
     # Output is a fresh job directory outside both execution containers and the original tree.
     if not isinstance(local.base_commit, str) or not re.fullmatch(
         r"(?:[a-f0-9]{40}|[a-f0-9]{64})", local.base_commit
@@ -224,13 +250,19 @@ def run_opencode(
         with DisposableWorkspace(
             source, local.base_commit, cfg, max_seconds=remaining()
         ) as work:
+            if named:
+                task.prepare(work, executor, p.language)
             inputs = assemble_inputs(cfg, work.path, diff, artifact_root)
             prompt = (
-                build_prompt(cfg, inputs)
+                (task.prompt(cfg, inputs) if named else build_prompt(cfg, inputs))
                 + "\nEdit only the configured write paths. Use validation_validate for configured checks. Never use shell, publish, or invent test results."
             )
             prompt += "\nPermitted write paths: " + json.dumps(cfg.write_paths)
-            bound = len(prompt.encode()) + len(cfg.system_prompt.encode()) + 4096
+            bound = (
+                len(prompt.encode())
+                + len((task.SYSTEM_PROMPT if named else cfg.system_prompt).encode())
+                + 4096
+            )
             if bound > cfg.inputs.max_context_tokens or bound + min(
                 local.max_tokens, 16384
             ) > min(cfg.resources.max_tokens, local.effective_token_ceiling("review")):
@@ -243,6 +275,9 @@ def run_opencode(
                 patch, a = work.capture(out)
                 artifacts = [a] if a else []
                 checks = []
+                if named:
+                    task.check_patch(work, patch, p.language)
+                    executor.generated = sorted(f.path for f in patch.files)
                 digest = patch.sha256 if patch else None
                 before = inspect_tree(
                     work.path,
@@ -275,6 +310,8 @@ def run_opencode(
                                 - sum(a.size_bytes for a in artifacts),
                             ),
                         )
+                    if getattr(executor, "cleanup_failed", False):
+                        work.preserve = True
                     checks.append(c)
                     if a:
                         artifacts.append(a)
@@ -367,8 +404,9 @@ def run_opencode(
         status, reason, code = "failed", "Runner usage is incomplete", 4
     metadata = TaskResult(
         version=1,
-        kind="patch" if patch else "report",
-        task="other",
+        kind="patch" if named or patch else "report",
+        task=configuration["taskType"],
+        language=p.language if named else None,
         mode="opencode",
         execution_status=status,
         execution_reason=reason,

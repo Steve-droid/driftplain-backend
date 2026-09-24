@@ -301,6 +301,10 @@ def test_named_task_config_and_result_contracts(
     )
     config.pop("systemPrompt", None)
     config.pop("label", None)
+    if task == "test_generation":
+        from tests.agent.test_test_generation import configuration
+
+        config = configuration(language)["taskConfiguration"]
     h, ci, p = project(
         client,
         db_session,
@@ -312,6 +316,10 @@ def test_named_task_config_and_result_contracts(
         config=config,
     )
     data = patch_result(p) if fix or task == "test_generation" else envelope(p)
+    if task == "test_generation":
+        from tests.test_test_generation_api import add_evidence
+
+        add_evidence(data, p, language)
     if task == "ci_failure_diagnosis":
         # Successful diagnosis cannot turn the original failed CI build green.
         data["gate"] = "fail"
