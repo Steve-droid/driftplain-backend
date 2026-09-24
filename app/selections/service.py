@@ -159,6 +159,8 @@ def candidates(
     group=None,
     offset=0,
     limit=100,
+    catalog_model_id=None,
+    observation_id=None,
 ):
     p = policy(task, mode, language, propose_fix)
     runtimes = db.execute(
@@ -319,6 +321,8 @@ def candidates(
         i
         for i in ranked + unranked
         if q.casefold() in (i["model"] + " " + i["provider"]).casefold()
+        and (catalog_model_id is None or i["catalogModelId"] == catalog_model_id)
+        and (observation_id is None or i["observationId"] == observation_id)
     ]
     return {
         "policy": p,
