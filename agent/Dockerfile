@@ -49,6 +49,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM ${PYTHON_IMAGE} AS runtime
 # Apply Debian security fixes newer than the pinned Python base (2026-09-12).
 RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+ && apt-get install -y --no-install-recommends git docker-cli \
  && rm -rf /var/lib/apt/lists/*
 # The venv is complete: nothing installs at run time, so the base image's pip/ensurepip
 # (and its CVE surface) leave; so does the stdlib bytecode (recompiled in memory once).

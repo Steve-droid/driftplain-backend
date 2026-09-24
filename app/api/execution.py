@@ -156,3 +156,31 @@ def agent_config(
     ):
         raise HTTPException(409, "This task requires taskContractVersion=1 negotiation")
     return result
+
+
+@router.get("/projects/{project_id}/ci-command")
+def other_ci_command(project_id: int, db: Db, user: Owner):
+    """Runtime-only B10 command seam; images must be pinned by the operator."""
+    from app.config import get_settings
+    from app.selections.other_setup import build_other_command
+
+    project = service.owned_project(db, project_id, user)
+    body = service.agent_config(db, project)
+    if body["taskType"] != "other":
+        raise HTTPException(422, "This setup seam supports Other only")
+    settings = get_settings()
+    try:
+        command = build_other_command(
+            body, settings.agent_image, settings.agent_security_image
+        )
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from None
+    return {
+        "executionRevisionId": body["executionRevisionId"],
+        "executionMode": body["executionMode"],
+        "command": command,
+        "launcherImage": settings.agent_image,
+        "editorImage": settings.agent_security_image
+        if body["executionMode"] == "opencode"
+        else None,
+    }

@@ -14,6 +14,13 @@ native provider usage and cannot coexist with it. Ingestion binds it to the exec
 revision/provider/profile and checks captured compatibility counts. No migration or costs are
 introduced. See [security support](../agent/SECURITY-SUPPORT.md) for limits and live-evidence gaps.
 
+**B10 extension:** Other has independent generic single-call and writable OpenCode consumers.
+Native `providerUsage` v1 applies to Other/single_call; normalized `runnerUsage` v1 applies to
+Other/opencode with unchanged category/retry semantics. They remain mutually exclusive and
+revision-bound. Three models in each mode remain pending, with no runtime activation.
+The trusted launcher, narrow MCP tool, separate networkless validation containers and final
+patch checks are documented in [Other support](../agent/OTHER-SUPPORT.md). No migration.
+
 `app/task_contracts.py` is the shared, dependency-light source of truth for the backend
 and both agent images. This release defines contracts and persists metadata. It does **not**
 execute new tasks, activate providers, run validation commands or claim containment is proven.
