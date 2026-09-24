@@ -1,10 +1,11 @@
-"""S6 recommender service/endpoint tests against the seeded compose Postgres.
+"""Historical recommender service tests against disposable PostgreSQL.
 
-Exercises the full path: POST /recommendations → filter the seed catalog → rank in
+A test-only app constructs pre-B17 history: filter the seed catalog → rank in
 the dominant comparability group → choose the configured baseline → persist the
 profile + options + evidence (owner-scoped). Determinism is checked end-to-end.
 """
 
+from tests.legacy_history import post as legacy_post
 from sqlalchemy import func, select
 
 from app.catalog.seed import load_seed
@@ -33,14 +34,13 @@ def _auth_header(client) -> dict[str, str]:
 
 
 def test_review_task_picks_the_cheap_high_value_model(client, db_session):
-    """The product's headline pick: on the CI-review task the recommender chooses
+    """The historical weighted pick: on the CI-review task the recommender chooses
     Claude Haiku 4.5 — 85.0 review score against the baseline's 87.1, at a third of
     the price — and reports the group it compared within."""
     load_seed(db_session)
     headers = _auth_header(client)
 
-    resp = client.post(
-        "/recommendations",
+    resp = legacy_post(client, "/recommendations",
         json={"taskTypes": ["ci_review"], "budgetSensitivity": "high"},
         headers=headers,
     )
@@ -77,8 +77,7 @@ def test_security_task_uses_its_own_benchmark_and_baseline(client, db_session):
     load_seed(db_session)
     headers = _auth_header(client)
 
-    body = client.post(
-        "/recommendations",
+    body = legacy_post(client, "/recommendations",
         json={"taskTypes": ["security_analysis"], "budgetSensitivity": "low"},
         headers=headers,
     ).json()
@@ -101,8 +100,7 @@ def test_budget_sensitivity_steers_the_pick(client, db_session):
     headers = _auth_header(client)
 
     def pick(sensitivity: str) -> dict:
-        return client.post(
-            "/recommendations",
+        return legacy_post(client, "/recommendations",
             json={"taskTypes": ["security_analysis"], "budgetSensitivity": sensitivity},
             headers=headers,
         ).json()["suggested"]
@@ -120,8 +118,7 @@ def test_persists_profile_options_evidence(client, db_session):
     load_seed(db_session)
     headers, user_id = _register(client, db_session, "persist@example.com")
 
-    body = client.post(
-        "/recommendations",
+    body = legacy_post(client, "/recommendations",
         json={"taskTypes": ["ci_review"], "budgetSensitivity": "medium"},
         headers=headers,
     ).json()
@@ -153,8 +150,7 @@ def test_returned_option_ids_exist_and_belong_to_the_profile(client, db_session)
     load_seed(db_session)
     headers, _ = _register(client, db_session, "ids@example.com")
 
-    body = client.post(
-        "/recommendations",
+    body = legacy_post(client, "/recommendations",
         json={"taskTypes": ["ci_review"], "budgetSensitivity": "medium"},
         headers=headers,
     ).json()
@@ -173,8 +169,7 @@ def test_recommendation_is_owned_by_creating_user_not_another(client, db_session
     _, user_b = _register(client, db_session, "bob@example.com")
     assert user_a != user_b
 
-    body = client.post(
-        "/recommendations",
+    body = legacy_post(client, "/recommendations",
         json={"taskTypes": ["ci_review"], "budgetSensitivity": "medium"},
         headers=headers_a,  # created by Alice
     ).json()
@@ -189,8 +184,8 @@ def test_same_request_is_deterministic(client, db_session):
     headers = _auth_header(client)
     payload = {"taskTypes": ["ci_review"], "budgetSensitivity": "high"}
 
-    a = client.post("/recommendations", json=payload, headers=headers).json()
-    b = client.post("/recommendations", json=payload, headers=headers).json()
+    a = legacy_post(client, "/recommendations", json=payload, headers=headers).json()
+    b = legacy_post(client, "/recommendations", json=payload, headers=headers).json()
 
     assert [o["model"] for o in a["shortlist"]] == [o["model"] for o in b["shortlist"]]
     assert [o["rankScore"] for o in a["shortlist"]] == [o["rankScore"] for o in b["shortlist"]]
@@ -204,8 +199,7 @@ def test_task_types_from_two_benchmarks_are_rejected_not_voted_on(client, db_ses
     load_seed(db_session)
     headers = _auth_header(client)
 
-    resp = client.post(
-        "/recommendations",
+    resp = legacy_post(client, "/recommendations",
         json={"taskTypes": ["ci_review", "agentic_coding"], "budgetSensitivity": "medium"},
         headers=headers,
     )
@@ -219,8 +213,7 @@ def test_one_task_type_ranks_inside_its_own_benchmark(client, db_session):
     load_seed(db_session)
     headers = _auth_header(client)
 
-    body = client.post(
-        "/recommendations",
+    body = legacy_post(client, "/recommendations",
         json={"taskTypes": ["agentic_coding"], "budgetSensitivity": "medium"},
         headers=headers,
     ).json()
@@ -231,8 +224,7 @@ def test_one_task_type_ranks_inside_its_own_benchmark(client, db_session):
 def test_no_matching_task_types_is_422(client, db_session):
     load_seed(db_session)
     headers = _auth_header(client)
-    resp = client.post(
-        "/recommendations",
+    resp = legacy_post(client, "/recommendations",
         json={"taskTypes": ["does_not_exist"], "budgetSensitivity": "medium"},
         headers=headers,
     )
@@ -240,8 +232,7 @@ def test_no_matching_task_types_is_422(client, db_session):
 
 
 def test_recommendation_requires_auth(client):
-    resp = client.post(
-        "/recommendations",
+    resp = legacy_post(client, "/recommendations",
         json={"taskTypes": ["agentic_coding"], "budgetSensitivity": "medium"},
     )
     assert resp.status_code == 401
@@ -263,8 +254,7 @@ def test_pick_is_restricted_to_models_the_agent_can_run(client, db_session):
     load_seed(db_session)
     headers = _auth_header(client)
 
-    body = client.post(
-        "/recommendations",
+    body = legacy_post(client, "/recommendations",
         json={"taskTypes": ["security_analysis"], "budgetSensitivity": "high"},
         headers=headers,
     ).json()
@@ -302,8 +292,7 @@ def test_unrunnable_models_can_be_ranked_when_the_filter_is_off(
     monkeypatch.setenv("RECOMMEND_ONLY_RUNNABLE", "false")
     get_settings.cache_clear()
     try:
-        body = client.post(
-            "/recommendations",
+        body = legacy_post(client, "/recommendations",
             json={"taskTypes": ["security_analysis"], "budgetSensitivity": "high"},
             headers=headers,
         ).json()

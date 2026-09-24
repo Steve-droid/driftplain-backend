@@ -56,7 +56,7 @@ It is vocabulary, **not a list of enabled runtimes**; use `/execution/v1/candida
 
 `propose_fix` is not a sixth task. Only named test generation accepts `language`, exactly
 `python` or `node`. Old `review` / `security` dispatch names stay in the legacy facade;
-new envelopes use canonical task IDs. Legacy recommendation/project creation stays two-task.
+new envelopes use canonical task IDs. Legacy recommendation/project creation is retired by B17; historical two-task records stay intact.
 Benchmark selection policy values and B6 evidence grouping do not change.
 
 ## Immutable configuration

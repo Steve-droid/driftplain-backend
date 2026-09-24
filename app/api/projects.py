@@ -1,26 +1,20 @@
-"""Project routes (S8): create from a pick, list, get-by-id. All auth-gated + owner-scoped.
+"""Historical project reads/edits; weighted creation and re-picks retired in B17."""
 
-Later stories hang off /projects/{id} (Jenkins connection, ci-runs, savings, chat).
-"""
-
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user, get_db
 from app.models import User
 from app.projects import service
-from app.schemas.project import ProjectCreate, ProjectOut, ProjectUpdate
+from app.schemas.project import ProjectOut, ProjectUpdate
+from app.api.recommend import RETIRED_DETAIL
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
-@router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
-def create_project(
-    payload: ProjectCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> ProjectOut:
-    return service.create_project(db, payload, current_user)
+@router.post("", deprecated=True, status_code=410)
+def create_project(current_user: User = Depends(get_current_user)) -> None:
+    raise HTTPException(410, RETIRED_DETAIL)
 
 
 @router.get("", response_model=list[ProjectOut])
@@ -47,6 +41,13 @@ def update_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ProjectOut:
+    # Resolve ownership before reporting a retired selection mutation. Mixed payloads
+    # fail as a whole; name/preferences must never be partly committed.
+    project = service.get_project(db, project_id, current_user)
+    if not project.execution_revision_id and payload.model_fields_set & {
+        "selected_option_id", "baseline_model_id", "task_type"
+    }:
+        raise HTTPException(410, RETIRED_DETAIL)
     return service.update_project(db, project_id, payload, current_user)
 
 

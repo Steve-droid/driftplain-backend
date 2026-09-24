@@ -54,7 +54,7 @@ def test_prefill_endpoint_requires_auth(client):
     assert client.post("/recommendations/prefill", json={"text": "cheap agent"}).status_code == 401
 
 
-def test_prefill_endpoint_returns_suggestion(client):
+def test_prefill_endpoint_is_retired(client):
     creds = {"email": "pf@example.com", "password": "correct horse battery"}
     client.post("/auth/register", json=creds)
     token = client.post("/auth/login", json=creds).json()["accessToken"]
@@ -63,7 +63,5 @@ def test_prefill_endpoint_returns_suggestion(client):
         json={"text": "cheap coding agent"},
         headers={"Authorization": f"Bearer {token}"},
     )
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["taskTypes"] == ["agentic_coding"]
-    assert body["budgetSensitivity"] == "high"
+    assert resp.status_code == 410
+    assert "/execution/v1" in resp.json()["detail"]

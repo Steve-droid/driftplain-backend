@@ -135,11 +135,11 @@ def test_answer_prompt_grounds_on_summary_and_rows():
     p = build_answer_prompt("q?", "MY-SPEND", "SELECT 1", ["n"], [(1,)])
     assert "MY-SPEND" in p.user and "SELECT 1" in p.user
     assert "only" in p.system.lower()  # ground only on provided data
-    # B3: the answer must not present the period spend as savings
+    # B17: neither historical estimates nor feedback prove spend or quality.
     sys_low = p.system.lower()
-    assert "cumulative saved vs baseline" in sys_low
-    assert "never present spend as savings" in sys_low
-    assert p.prompt_id == "chat-answer@v2"
+    assert "not actual" in sys_low
+    assert "never claim measured" in sys_low
+    assert p.prompt_id == "chat-answer@v3"
 
 
 def test_prompts_survive_untrusted_braces():
@@ -220,12 +220,14 @@ def test_opener_handles_a_project_with_no_runs():
 
 def test_opener_flags_quality_risk_status():
     op = opener.build_opener(_savings(status="quality_risk", rate=0.5, quality_risk="0.0040"))
-    assert "risk" in op.lower() and "$0.0040" in op
+    assert "excluded" in op.lower() and "$0.0040" in op
 
 
-def test_savings_snapshot_marks_figures_authoritative():
+def test_savings_snapshot_marks_legacy_estimates_and_limits():
     snap = opener.format_savings_snapshot(_savings())
-    assert "authoritative" in snap.lower()
+    assert "not an invoice" in snap.lower()
+    assert "not recall" in snap
+    assert "not executed" in snap
     assert "$0.0080" in snap and "Claude Haiku 4.5" in snap
 
 

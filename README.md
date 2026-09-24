@@ -14,20 +14,36 @@ changes, and `uv` manages Python dependencies.
 | Component | What it does | Code |
 |---|---|---|
 | Catalog | Stores models, providers, benchmark results and their sources. Provides read-only search and detail APIs at `/catalog/v1`. | [app/catalog](app/catalog/), [catalog routes](app/api/catalog.py) |
-| Recommendations | Ranks models using benchmark scores and token prices. This is a calculation, with no model call. | [app/recommend](app/recommend/) |
-| Projects and CI setup | Saves the selected model and review preferences, issues a project CI token and generates a Jenkins stage. | [app/projects](app/projects/), [app/ci](app/ci/) |
-| Runs and feedback | Accepts findings and token counts at `POST /ci-runs`, records feedback and calculates costs. | [app/ci](app/ci/), [app/quality](app/quality/), [app/savings](app/savings/) |
-| Authentication | Supports password login and Google sign-in. Users can access only their own projects and runs. | [app/auth](app/auth/) |
-| Ingestion and chat | Imports benchmark data and answers questions about project usage. Both support fake model clients for development. | [app/ingest](app/ingest/), [app/chat](app/chat/), [app/llm](app/llm/) |
+| Explicit CI selection | Chooses an exact source observation and verified task/runtime; comparable benchmark groups alone carry recommendations. | [app/selections](app/selections/CONTRACT.md) |
+| Projects and CI setup | Saves immutable execution revisions, issues project CI tokens and generates Jenkins commands. Existing legacy projects and tokens remain compatible. | [app/projects](app/projects/), [app/api/execution.py](app/api/execution.py) |
+| Runs and feedback | Accepts findings, task results and usage at `POST /projects/{id}/ci-runs`; reports selected-run estimates and accounting coverage. | [app/billing](app/billing/CONTRACT.md) |
+| Authentication | Password/Google sign-in and owner-scoped project access. | [app/auth](app/auth/) |
+| Catalog imports | Deterministic reviewed source acquisition, immutable evidence and separately gated refreshes. | [app/catalog/imports](app/catalog/imports/OPERATIONS.md) |
+| Legacy chat | Operator-gated historical conversations; offline at home and unavailable for explicit selections. Stored messages remain unchanged. | [app/chat](app/chat/) |
 
-The current recommendation flow combines benchmark scores and price into a weighted ranking.
-Its cost comparison prices one run's token usage at both the selected model's rates and a
-baseline model's rates. The baseline is not run, so the difference is an estimate rather
-than measured savings. Feedback controls which runs count toward the dashboard total.
+Public `/catalog/v1` browsing is independent of authentication and executable support.
+`/execution/v1` requires a source-backed canonical model and an enabled, verified exact
+runtime. No new runtimes or billing rates are seeded. B8–B12 candidate integrations remain
+pending live verification; source labels without reviewed aliases are not canonical choices.
+The hosted deployment uses earlier images; publication does not deploy these features.
 
-The public catalog API is available in this source tree. The benchmark browsing UI is still
-in development. The hosted deployment uses an earlier backend image and has its chat assistant
-disabled; see [GitOps](https://github.com/Steve-droid/driftplain-gitops) for deployed image pins.
+## B17 upgrade boundary (backend 2.0.0)
+
+**Breaking change:** `POST /recommendations`, `POST /recommendations/prefill` and legacy
+`POST /projects` now return authenticated HTTP 410. Legacy project PATCH requests containing
+`selectedOptionId`, `baselineModelId` or `taskType` also return 410 without partial writes.
+Create or re-pick through `/execution/v1/projects`; an empty eligible set stays empty.
+Existing project reads, name/preferences, Jenkins metadata, CI tokens, old agent config,
+run ingestion, findings/feedback, historical amounts and conversations remain supported.
+An explicit transition preserves the existing token and prior recommendation references.
+
+There is no B17 migration: head remains `b16c0a7a0001`. After separately approved backup/restore
+checks, apply the additive schema/backend, compatible agents, then frontend 2.0.0. During that
+coordination window, older frontends' weighted create/re-pick actions will fail with 410;
+existing agents continue reporting. Disable affected entry points during rollback and retain
+the additive schema/history. Do not downgrade populated data or restore over new history.
+Scheduler installation, runtime activation, reviewed aliases/rates and deployment need separate
+approval. The B16 chart stays disabled/suspended and outside watched Applications.
 
 ## CI agents
 
@@ -36,7 +52,9 @@ disabled; see [GitOps](https://github.com/Steve-droid/driftplain-gitops) for dep
 | Code review | Makes one model call with a pull-request diff and review preferences. | A high or critical finding fails the stage. |
 | Security analysis | Uses OpenCode to inspect a read-only checkout over multiple steps. | A critical finding fails the stage. |
 
-Both agents enforce token limits and report findings and usage. They do not edit the checkout.
+The legacy review/security modes enforce token limits and report findings and usage without editing source.
+Explicit Other, named-test and optional diagnosis-repair modes can propose bounded patches
+from disposable checkouts, with independent validation. See [task contracts](app/TASK-CONTRACT.md).
 Model credentials stay in Jenkins, and the API receives results through a separate project CI
 token. The review agent supports Anthropic, Gemini and Bedrock; the security agent also supports
 DeepSeek and OpenAI through OpenCode.
@@ -127,7 +145,7 @@ choices, task/profile eligibility, benchmark policy snapshots, owner-scoped proj
 immutable execution revisions. New explicit projects have no comparison baseline. Legacy
 projects/agents retain their existing contract. The new runtime set starts empty pending
 exact task/profile verification; imported scores never enable execution. Migration head is
-`d7e8f9a0b1c2`. This release does not enable a provider, migrate production or deploy an agent.
+`b16c0a7a0001`. This release does not enable a provider, migrate production or deploy an agent.
 
 ### Selected-run usage and cost (B15)
 

@@ -1,10 +1,11 @@
-"""S8 project tests: create from a pick, list/get, owner-scoping + error paths.
+"""Historical project construction plus current read/edit/ownership contracts.
 
 A project is built from a real recommendation option (owned by the caller) plus a
 baseline model. Owner-scoping is the point: you can't build from another user's
 option, and you can't read another user's project.
 """
 
+from tests.legacy_history import post as legacy_post
 from sqlalchemy import func, select
 
 from app.catalog.seed import load_seed
@@ -68,8 +69,7 @@ def _register(client, db_session, email: str) -> tuple[dict[str, str], int]:
 
 def _make_pick(client, headers) -> dict:
     """Create a recommendation; return its top option + baseline (the pick)."""
-    body = client.post(
-        "/recommendations",
+    body = legacy_post(client, "/recommendations",
         json={"taskTypes": ["ci_review"], "budgetSensitivity": "high"},
         headers=headers,
     ).json()
@@ -87,8 +87,7 @@ def test_create_project_persists_and_returns_enriched(client, db_session):
     headers, user_id = _register(client, db_session, "p_create@example.com")
     pick = _make_pick(client, headers)
 
-    resp = client.post(
-        "/projects",
+    resp = legacy_post(client, "/projects",
         json={
             "name": "my-repo CI",
             "selectedOptionId": pick["selected_option_id"],
@@ -119,12 +118,12 @@ def test_list_projects_is_owner_scoped(client, db_session):
     pick_b = _make_pick(client, headers_b)
 
     for name in ("a1", "a2"):
-        client.post("/projects", json={
+        legacy_post(client, "/projects", json={
             "name": name,
             "selectedOptionId": pick_a["selected_option_id"],
             "baselineModelId": pick_a["baseline_model_id"],
         }, headers=headers_a)
-    client.post("/projects", json={
+    legacy_post(client, "/projects", json={
         "name": "b1",
         "selectedOptionId": pick_b["selected_option_id"],
         "baselineModelId": pick_b["baseline_model_id"],
@@ -140,7 +139,7 @@ def test_get_by_id_owner_scoped(client, db_session):
     headers_b, _ = _register(client, db_session, "p_get_b@example.com")
     pick_a = _make_pick(client, headers_a)
 
-    pid = client.post("/projects", json={
+    pid = legacy_post(client, "/projects", json={
         "name": "secret",
         "selectedOptionId": pick_a["selected_option_id"],
         "baselineModelId": pick_a["baseline_model_id"],
@@ -160,7 +159,7 @@ def test_create_with_unknown_option_404(client, db_session):
     load_seed(db_session)
     headers, _ = _register(client, db_session, "p_opt404@example.com")
     pick = _make_pick(client, headers)
-    resp = client.post("/projects", json={
+    resp = legacy_post(client, "/projects", json={
         "name": "x",
         "selectedOptionId": 999999,
         "baselineModelId": pick["baseline_model_id"],
@@ -176,7 +175,7 @@ def test_create_with_another_users_option_403(client, db_session):
     pick_b = _make_pick(client, headers_b)
 
     # B tries to build a project from A's recommendation option
-    resp = client.post("/projects", json={
+    resp = legacy_post(client, "/projects", json={
         "name": "stolen",
         "selectedOptionId": pick_a["selected_option_id"],
         "baselineModelId": pick_b["baseline_model_id"],
@@ -188,7 +187,7 @@ def test_create_with_unknown_baseline_model_404(client, db_session):
     load_seed(db_session)
     headers, _ = _register(client, db_session, "p_base404@example.com")
     pick = _make_pick(client, headers)
-    resp = client.post("/projects", json={
+    resp = legacy_post(client, "/projects", json={
         "name": "x",
         "selectedOptionId": pick["selected_option_id"],
         "baselineModelId": 999999,
@@ -202,7 +201,7 @@ def test_create_rejects_selected_option_without_enabled_runtime_config(client, d
     pick = _make_pick(client, headers)
     _set_runtime_config_enabled(db_session, pick["selected_option_id"], False)
 
-    resp = client.post("/projects", json={
+    resp = legacy_post(client, "/projects", json={
         "name": "no runtime",
         "selectedOptionId": pick["selected_option_id"],
         "baselineModelId": pick["baseline_model_id"],
@@ -218,7 +217,7 @@ def test_create_with_blank_name_422(client, db_session):
     load_seed(db_session)
     headers, _ = _register(client, db_session, "p_blank@example.com")
     pick = _make_pick(client, headers)
-    resp = client.post("/projects", json={
+    resp = legacy_post(client, "/projects", json={
         "name": "",
         "selectedOptionId": pick["selected_option_id"],
         "baselineModelId": pick["baseline_model_id"],
@@ -230,7 +229,7 @@ def test_create_with_overlong_name_422(client, db_session):
     load_seed(db_session)
     headers, _ = _register(client, db_session, "p_long@example.com")
     pick = _make_pick(client, headers)
-    resp = client.post("/projects", json={
+    resp = legacy_post(client, "/projects", json={
         "name": "x" * 201,
         "selectedOptionId": pick["selected_option_id"],
         "baselineModelId": pick["baseline_model_id"],
@@ -240,7 +239,7 @@ def test_create_with_overlong_name_422(client, db_session):
 
 def test_projects_require_auth(client):
     assert client.get("/projects").status_code == 401
-    assert client.post("/projects", json={
+    assert legacy_post(client, "/projects", json={
         "name": "x", "selectedOptionId": 1, "baselineModelId": 1,
     }).status_code == 401
 
@@ -248,7 +247,7 @@ def test_projects_require_auth(client):
 # --- S15d helpers -------------------------------------------------------------
 
 def _create_project(client, headers, pick, name="proj") -> dict:
-    return client.post("/projects", json={
+    return legacy_post(client, "/projects", json={
         "name": name,
         "selectedOptionId": pick["selected_option_id"],
         "baselineModelId": pick["baseline_model_id"],
@@ -285,35 +284,6 @@ def test_setup_complete_false_until_ci_token(client, db_session):
 
 # --- S15d: PATCH (rename + re-pick) -------------------------------------------
 
-def test_patch_repick_updates_selected_and_baseline(client, db_session):
-    load_seed(db_session)
-    headers, _ = _register(client, db_session, "p_patch@example.com")
-    pick = _make_pick(client, headers)
-    pid = _create_project(client, headers, pick, name="before")["id"]
-
-    # a fresh recommendation gives a new (caller-owned) option to re-pick
-    pick2 = _make_pick(client, headers)
-    other_baseline = db_session.scalar(
-        select(Model.id).where(Model.id != pick["baseline_model_id"]).limit(1)
-    )
-
-    resp = client.patch(f"/projects/{pid}", json={
-        "name": "after",
-        "selectedOptionId": pick2["selected_option_id"],
-        "baselineModelId": other_baseline,
-    }, headers=headers)
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["name"] == "after"
-    assert body["selectedOptionId"] == pick2["selected_option_id"]
-    assert body["baselineModelId"] == other_baseline
-
-    # persisted
-    db_session.expire_all()
-    proj = db_session.get(Project, pid)
-    assert proj.selected_option_id == pick2["selected_option_id"]
-    assert proj.baseline_model_id == other_baseline
-    assert proj.name == "after"
 
 
 def test_patch_name_only_leaves_pick(client, db_session):
@@ -359,55 +329,12 @@ def test_patch_owner_scoped_403(client, db_session):
     assert client.patch(f"/projects/{pid}", json={"name": "hijack"}, headers=headers_b).status_code == 403
 
 
-def test_patch_repick_to_another_users_option_403(client, db_session):
-    load_seed(db_session)
-    headers_a, _ = _register(client, db_session, "p_patch_opt_a@example.com")
-    headers_b, _ = _register(client, db_session, "p_patch_opt_b@example.com")
-    pick_a = _make_pick(client, headers_a)
-    pick_b = _make_pick(client, headers_b)  # option owned by B
-    pid = _create_project(client, headers_a, pick_a)["id"]
-    # A tries to re-pick onto B's option
-    resp = client.patch(f"/projects/{pid}", json={
-        "selectedOptionId": pick_b["selected_option_id"],
-    }, headers=headers_a)
-    assert resp.status_code == 403
 
 
-def test_patch_unknown_option_404(client, db_session):
-    load_seed(db_session)
-    headers, _ = _register(client, db_session, "p_patch_opt404@example.com")
-    pick = _make_pick(client, headers)
-    pid = _create_project(client, headers, pick)["id"]
-    resp = client.patch(f"/projects/{pid}", json={"selectedOptionId": 999999}, headers=headers)
-    assert resp.status_code == 404
 
 
-def test_patch_unknown_baseline_404(client, db_session):
-    load_seed(db_session)
-    headers, _ = _register(client, db_session, "p_patch_base404@example.com")
-    pick = _make_pick(client, headers)
-    pid = _create_project(client, headers, pick)["id"]
-    resp = client.patch(f"/projects/{pid}", json={"baselineModelId": 999999}, headers=headers)
-    assert resp.status_code == 404
 
 
-def test_patch_repick_rejects_option_without_enabled_runtime_config(client, db_session):
-    load_seed(db_session)
-    headers, _ = _register(client, db_session, "p_patch_runtime@example.com")
-    pick = _make_pick(client, headers)
-    pid = _create_project(client, headers, pick)["id"]
-    replacement = _make_pick(client, headers)
-    _set_runtime_config_enabled(db_session, replacement["selected_option_id"], False)
-
-    resp = client.patch(
-        f"/projects/{pid}",
-        json={"selectedOptionId": replacement["selected_option_id"]},
-        headers=headers,
-    )
-
-    _assert_runtime_config_422(resp)
-    db_session.expire_all()
-    assert db_session.get(Project, pid).selected_option_id == pick["selected_option_id"]
 
 
 def test_patch_nonexistent_404(client, db_session):
@@ -526,16 +453,14 @@ def test_delete_requires_auth_401(client):
 # --- E20: the project's task + review preferences --------------------------------
 
 def _security_recommendation(client, headers) -> dict:
-    return client.post(
-        "/recommendations",
+    return legacy_post(client, "/recommendations",
         json={"taskTypes": ["security_analysis"], "budgetSensitivity": "high"},
         headers=headers,
     ).json()
 
 
 def _recommendation(client, headers) -> dict:
-    return client.post(
-        "/recommendations",
+    return legacy_post(client, "/recommendations",
         json={"taskTypes": ["ci_review"], "budgetSensitivity": "high"},
         headers=headers,
     ).json()
@@ -551,8 +476,7 @@ def test_create_derives_task_type_from_the_option_when_omitted(client, db_sessio
     load_seed(db_session)
     headers, _ = _register(client, db_session, "task_derive@example.com")
     rec = _recommendation(client, headers)
-    out = client.post(
-        "/projects",
+    out = legacy_post(client, "/projects",
         json={
             "name": "p",
             "selectedOptionId": rec["shortlist"][0]["recommendationOptionId"],
@@ -569,8 +493,7 @@ def test_create_security_project_states_its_task(client, db_session):
     load_seed(db_session)
     headers, _ = _register(client, db_session, "task_sec@example.com")
     rec = _security_recommendation(client, headers)
-    resp = client.post(
-        "/projects",
+    resp = legacy_post(client, "/projects",
         json={
             "name": "sec",
             "selectedOptionId": rec["shortlist"][0]["recommendationOptionId"],
@@ -589,8 +512,7 @@ def test_create_rejects_task_type_that_contradicts_the_option_422(client, db_ses
     load_seed(db_session)
     headers, _ = _register(client, db_session, "task_mismatch@example.com")
     rec = _security_recommendation(client, headers)
-    resp = client.post(
-        "/projects",
+    resp = legacy_post(client, "/projects",
         json={
             "name": "p",
             "selectedOptionId": rec["shortlist"][0]["recommendationOptionId"],
@@ -607,8 +529,7 @@ def test_create_rejects_unknown_task_type_422(client, db_session):
     load_seed(db_session)
     headers, _ = _register(client, db_session, "task_unknown@example.com")
     rec = _recommendation(client, headers)
-    resp = client.post(
-        "/projects",
+    resp = legacy_post(client, "/projects",
         json={
             "name": "p",
             "selectedOptionId": rec["shortlist"][0]["recommendationOptionId"],
@@ -630,17 +551,16 @@ def test_create_stores_bounded_review_preferences(client, db_session):
         "baselineModelId": rec["baseline"]["modelId"],
         "taskType": "ci_review",
     }
-    out = client.post(
-        "/projects",
+    out = legacy_post(client, "/projects",
         json={**base, "reviewPreferences": "  Flag any use of eval().  "},
         headers=headers,
     ).json()
     assert out["reviewPreferences"] == "Flag any use of eval()."  # trimmed
     # whitespace-only → none
-    out2 = client.post("/projects", json={**base, "reviewPreferences": "   "}, headers=headers).json()
+    out2 = legacy_post(client, "/projects", json={**base, "reviewPreferences": "   "}, headers=headers).json()
     assert out2["reviewPreferences"] is None
     # over the contract's bound → 422
-    resp = client.post("/projects", json={**base, "reviewPreferences": "x" * 2001}, headers=headers)
+    resp = legacy_post(client, "/projects", json={**base, "reviewPreferences": "x" * 2001}, headers=headers)
     assert resp.status_code == 422
 
 
@@ -661,14 +581,6 @@ def test_patch_review_preferences_sets_and_clears(client, db_session):
     assert db_session.get(Project, pid).review_preferences is None
 
 
-def test_patch_task_type_must_match_the_current_option(client, db_session):
-    load_seed(db_session)
-    headers, _ = _register(client, db_session, "task_patch@example.com")
-    pid = _create(client, headers)  # a ci_review project
-    assert client.patch(f"/projects/{pid}", json={"taskType": "ci_review"}, headers=headers).status_code == 200
-    resp = client.patch(f"/projects/{pid}", json={"taskType": "security_analysis"}, headers=headers)
-    assert resp.status_code == 422
-    assert db_session.get(Project, pid).task_type == "ci_review"
 
 
 def test_list_and_get_expose_task_type(client, db_session):
