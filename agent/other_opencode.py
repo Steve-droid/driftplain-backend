@@ -59,6 +59,10 @@ class DockerEditor:
             from agent.test_generation import profile
 
             p = profile(configuration)
+        elif configuration["taskType"] == "ci_failure_diagnosis":
+            from agent.diagnosis import profile
+
+            p = profile(configuration)
         else:
             p = OTHER_PROFILES[("opencode", configuration["model"]["providerModelId"])]
         cfg = work.cfg
@@ -100,9 +104,11 @@ class DockerEditor:
             "--tmpfs",
             "/tmp:rw,nosuid,nodev,size=128m",
             "--mount",
-            f"type=bind,src={work.path},dst=/workspace",
+            f"type=bind,src={work.path},dst=/workspace"
+            + (",readonly" if hasattr(p, "propose_fix") and not p.propose_fix else ""),
             "--mount",
-            f"type=bind,src={bridge},dst=/bridge",
+            f"type=bind,src={bridge},dst=/bridge"
+            + (",readonly" if hasattr(p, "propose_fix") and not p.propose_fix else ""),
             "--mount",
             f"type=bind,src={control},dst=/control,readonly",
             "-e",
@@ -132,6 +138,8 @@ class DockerEditor:
             if now < poll_at:
                 return
             poll_at = now + 0.1
+            if hasattr(p, "propose_fix") and not p.propose_fix:
+                return
             if not (bridge / "request.json").exists():
                 return
             req = json.loads(read_scoped(bridge, "request.json", 1024))
@@ -173,7 +181,11 @@ class DockerEditor:
                 max_bytes=r.max_output_bytes,
                 max_context=cfg.inputs.max_context_tokens,
                 max_output_tokens=output,
-                allowed_tools=ALLOWED_TOOLS,
+                allowed_tools=(
+                    frozenset({"read", "glob", "grep", "list"})
+                    if hasattr(p, "propose_fix") and not p.propose_fix
+                    else ALLOWED_TOOLS
+                ),
                 tick=tick,
             )
         finally:
@@ -189,15 +201,29 @@ class DockerEditor:
 
 
 def run_opencode(
-    configuration, local, *, diff=None, artifact_root=None, runner=None, executor=None
+    configuration,
+    local,
+    *,
+    diff=None,
+    artifact_root=None,
+    runner=None,
+    executor=None,
+    diagnosis_context=None,
 ):
     named = configuration["taskType"] == "test_generation"
+    diagnosis = configuration["taskType"] == "ci_failure_diagnosis"
     if named:
         from agent import test_generation as task
         from agent.test_validation import TestValidationExecutor
         from app.test_generation_contracts import validate_test_environment
 
         p = task.profile(configuration)
+    elif diagnosis:
+        from agent import diagnosis as task
+
+        p = task.profile(configuration)
+        if diagnosis_context is None or not diagnosis_context.claim_id:
+            raise AgentConfigError("Diagnosis requires a durable pre-invocation claim")
     else:
         p = OTHER_PROFILES[("opencode", configuration["model"]["providerModelId"])]
     cfg = TaskConfiguration.model_validate(configuration["taskConfiguration"])
@@ -205,6 +231,8 @@ def run_opencode(
         p = (
             task.resolve_test_profile(configuration)
             if named
+            else task.resolve_diagnosis_profile(configuration)
+            if diagnosis
             else resolve_other_profile(configuration)
         )
         runner = DockerEditor(local.other_image)
@@ -218,6 +246,10 @@ def run_opencode(
         if named
         else DockerValidationExecutor(cfg.resources)
     )
+    if diagnosis:
+        from app.diagnosis_contracts import redact
+
+        executor.redactor = lambda text: redact(text, task.credentials(local))
     # Output is a fresh job directory outside both execution containers and the original tree.
     if not isinstance(local.base_commit, str) or not re.fullmatch(
         r"(?:[a-f0-9]{40}|[a-f0-9]{64})", local.base_commit
@@ -244,6 +276,7 @@ def run_opencode(
     report = None
     patch = None
     artifacts = []
+    retained = [task.log_artifact(diagnosis_context, out)] if diagnosis else []
     checks = []
     status, reason, code = "completed", None, 0
     try:
@@ -252,15 +285,42 @@ def run_opencode(
         ) as work:
             if named:
                 task.prepare(work, executor, p.language)
+            if diagnosis:
+                task.prepare(work, local, p.propose_fix)
             inputs = assemble_inputs(cfg, work.path, diff, artifact_root)
+            if (
+                diagnosis
+                and len(inputs.encode()) + len(diagnosis_context.log_excerpt.encode())
+                > cfg.inputs.max_bytes
+            ):
+                raise CeilingExceeded(
+                    "input", "Combined source and failure log exceed input ceiling"
+                )
             prompt = (
-                (task.prompt(cfg, inputs) if named else build_prompt(cfg, inputs))
+                (
+                    task.prompt(cfg, inputs, diagnosis_context)
+                    if diagnosis
+                    else task.prompt(cfg, inputs)
+                    if named
+                    else build_prompt(cfg, inputs)
+                )
                 + "\nEdit only the configured write paths. Use validation_validate for configured checks. Never use shell, publish, or invent test results."
             )
+            if diagnosis and not p.propose_fix:
+                prompt = (
+                    task.prompt(cfg, inputs, diagnosis_context)
+                    + "\nRead-only: never edit or request validation."
+                )
             prompt += "\nPermitted write paths: " + json.dumps(cfg.write_paths)
+            if diagnosis:
+                prompt = redact(prompt, task.credentials(local))
             bound = (
                 len(prompt.encode())
-                + len((task.SYSTEM_PROMPT if named else cfg.system_prompt).encode())
+                + len(
+                    (
+                        task.SYSTEM_PROMPT if named or diagnosis else cfg.system_prompt
+                    ).encode()
+                )
                 + 4096
             )
             if bound > cfg.inputs.max_context_tokens or bound + min(
@@ -272,9 +332,21 @@ def run_opencode(
 
             def validate(budget):
                 nonlocal patch, artifacts, checks
-                patch, a = work.capture(out)
-                artifacts = [a] if a else []
+                if diagnosis:
+                    from types import SimpleNamespace
+
+                    patch, a = work.capture(
+                        out,
+                        check_changes=lambda files: task.check_patch(
+                            work, SimpleNamespace(files=files), p.propose_fix, local
+                        ),
+                    )
+                else:
+                    patch, a = work.capture(out)
+                artifacts = retained + ([a] if a else [])
                 checks = []
+                if diagnosis:
+                    task.check_patch(work, patch, p.propose_fix, local)
                 if named:
                     task.check_patch(work, patch, p.language)
                     executor.generated = sorted(f.path for f in patch.files)
@@ -363,10 +435,37 @@ def run_opencode(
                 patch, artifacts, checks = None, [], []
                 status = "timed_out" if stream.timed_out else "failed"
             else:
-                report = parse_report(stream.text)
+                if diagnosis:
+                    from app.diagnosis_contracts import redact
+
+                    report = task.parse_report(stream.text)
+                    values = task.credentials(local)
+                    report = report.model_copy(
+                        update={
+                            "summary": redact(report.summary, values),
+                            "uncertainty": redact(report.uncertainty, values),
+                            "next_steps": [
+                                redact(x, values) for x in report.next_steps
+                            ],
+                            "no_patch_reason": redact(report.no_patch_reason, values)
+                            if report.no_patch_reason
+                            else None,
+                        }
+                    )
+                else:
+                    report = parse_report(stream.text)
                 # Always rerun required configuration against the FINAL tree after editor termination.
                 # Intermediate tool results can never validate later edits.
                 validate(remaining())
+                if diagnosis:
+                    if patch and report.cause != "repository":
+                        raise AgentConfigError(
+                            "External or unknown causes cannot propose a patch"
+                        )
+                    if not patch and not report.no_patch_reason:
+                        raise AgentConfigError(
+                            "No patch proposed requires an explanation"
+                        )
                 if validation_status(checks) in ("failed", "unavailable"):
                     code = 1
                 if remaining() <= 0:
@@ -377,13 +476,18 @@ def run_opencode(
         status, reason, code = failure(e)
         # Do not attribute intermediate evidence to an unknown/failing final tree.
         patch = None
+        report = None
         artifacts = []
         checks = []
     except (OSError, ValueError, TypeError, KeyError):
         status, reason, code = "failed", "Custom execution boundary failed", 4
         patch = None
+        report = None
         artifacts = []
         checks = []
+    if diagnosis and patch is None:
+        # Rejected output must not leave an intermediate proposal in the archived directory.
+        (out / "changes.patch").unlink(missing_ok=True)
     counts = stream.counts if stream else {}
     usage = RunnerUsage(
         provider=p.provider,
@@ -407,6 +511,8 @@ def run_opencode(
         kind="patch" if named or patch else "report",
         task=configuration["taskType"],
         language=p.language if named else None,
+        propose_fix=p.propose_fix if diagnosis else False,
+        failure=diagnosis_context,
         mode="opencode",
         execution_status=status,
         execution_reason=reason,
@@ -414,7 +520,7 @@ def run_opencode(
         base_commit=local.base_commit,
         patch=patch,
         report=report,
-        artifacts=artifacts,
+        artifacts=artifacts if not diagnosis or artifacts else retained,
         validations=checks,
         runner_usage=usage,
     )

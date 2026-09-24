@@ -61,7 +61,9 @@ def _request(
         raise RemoteError(f"{method} {_path(url)} → HTTP {exc.code}{detail}") from None
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         reason = getattr(exc, "reason", exc)
-        raise RemoteError(f"{method} {_path(url)} failed: {type(exc).__name__}: {reason}") from None
+        raise RemoteError(
+            f"{method} {_path(url)} failed: {type(exc).__name__}: {reason}"
+        ) from None
     try:
         return json.loads(raw) if raw else {}
     except json.JSONDecodeError:
@@ -84,7 +86,9 @@ def _safe_detail(exc: urllib.error.HTTPError) -> str:
     return f" ({str(detail)[:200]})"
 
 
-def fetch_agent_config(api_url: str, project_id: int, token: str, timeout: int = 15) -> RemoteConfig:
+def fetch_agent_config(
+    api_url: str, project_id: int, token: str, timeout: int = 15
+) -> RemoteConfig:
     url = f"{api_url.rstrip('/')}/projects/{project_id}/agent-config"
     body = _request("GET", url, token, timeout)
     try:
@@ -150,11 +154,16 @@ def build_ci_run_payload(result_json: dict, build_id: str) -> dict:
     if "taskResult" in result_json:
         # Same parser as ingestion; generic reports never pass through a CWE parser.
         from app.task_contracts import TaskResult
-        payload["taskResult"] = TaskResult.model_validate(result_json["taskResult"]).model_dump(mode="json", by_alias=True)
+
+        payload["taskResult"] = TaskResult.model_validate(
+            result_json["taskResult"]
+        ).model_dump(mode="json", by_alias=True)
     return payload
 
 
-def fetch_execution_config(api_url: str, project_id: int, token: str, timeout: int = 15) -> dict:
+def fetch_execution_config(
+    api_url: str, project_id: int, token: str, timeout: int = 15
+) -> dict:
     """Explicit opt-in for v2 runners; legacy dispatch never calls this.
 
     Parsing a supported contract does not claim executable runtime support.
@@ -166,5 +175,20 @@ def fetch_execution_config(api_url: str, project_id: int, token: str, timeout: i
     try:
         validate_execution_config(body, project_id)
     except (ValueError, TypeError, KeyError):
-        raise RemoteError("Unsupported or inconsistent execution configuration") from None
+        raise RemoteError(
+            "Unsupported or inconsistent execution configuration"
+        ) from None
     return body
+
+
+def claim_failure(api_url, project_id, token, revision, context, timeout=15):
+    return _request(
+        "POST",
+        f"{api_url.rstrip('/')}/execution/v1/projects/{project_id}/failure-claims",
+        token,
+        timeout,
+        body={
+            "executionRevisionId": revision,
+            "failure": context.model_dump(mode="json", by_alias=True),
+        },
+    )

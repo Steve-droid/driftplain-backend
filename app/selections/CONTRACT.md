@@ -131,3 +131,8 @@ command exits nonzero on failed/unavailable tests and archives external job arti
 Python retains the TestGenEval Extra policy; Node remains unranked. No runtime row is seeded.
 Historical executed revisions still accept results after re-pick/disable. Full picker and
 preview UI remain B13/B14. See [test-generation support](../../agent/TEST-GENERATION-SUPPORT.md).
+
+B12 adds project-token `POST /execution/v1/projects/{id}/failure-claims` and extends owner
+`ci-command` with a failure-preserving diagnosis wrapper. Claims are permanent, unique per
+project/build/stage, and bound to the executed immutable revision. See
+[diagnosis support](../../agent/DIAGNOSIS-SUPPORT.md). No runtime is seeded or enabled.

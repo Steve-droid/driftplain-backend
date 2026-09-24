@@ -147,12 +147,12 @@ def result_envelope(configuration, metadata, usage, code):
         "tokensOut": usage.output_tokens or 0,
         "cacheReadTokens": usage.cache_read_tokens,
         "model": configuration["model"]["providerModelId"],
-        "gate": "pass" if code == 0 else "fail",
-        "gateReason": metadata.execution_reason
+        "gate": "pass" if code == 0 and metadata.task != "ci_failure_diagnosis" else "fail",
+        "gateReason": ("Original upstream result preserved" if metadata.task == "ci_failure_diagnosis" else None) or metadata.execution_reason
         or ("Validation did not pass" if code else None),
         "executionRevisionId": configuration["executionRevisionId"],
         "taskResult": metadata.model_dump(mode="json", by_alias=True),
-    }, code
+    }, (code or 1) if metadata.task == "ci_failure_diagnosis" else code
 
 
 def failure(e):

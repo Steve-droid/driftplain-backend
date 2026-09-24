@@ -122,3 +122,26 @@ class ExecutionRevision(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class DiagnosisClaim(Base):
+    __tablename__ = "diagnosis_claim"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "build_id", "stage", name="uq_diagnosis_failure"
+        ),
+        ForeignKeyConstraint(
+            ["execution_revision_id", "project_id"],
+            ["execution_revision.id", "execution_revision.project_id"],
+            ondelete="CASCADE",
+        ),
+    )
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    project_id: Mapped[int] = mapped_column(Integer)
+    execution_revision_id: Mapped[int] = mapped_column(Integer)
+    build_id: Mapped[str] = mapped_column(String(255))
+    stage: Mapped[str] = mapped_column(String(100))
+    context: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

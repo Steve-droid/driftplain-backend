@@ -185,3 +185,15 @@ DDL. Normal owner-requested project deletion retains existing cascade behavior.
 Backend `1.5.0 -> 1.6.0`: minor for additive configuration/result APIs. Agents `1.1.3 -> 1.2.0`:
 minor for the shared contract reader/serializer capability; current dispatch and CI gates remain.
 Publication does not authorize production migration, deployment or live provider verification.
+
+## B12 diagnosis extension — September 24, 2026
+
+Optional `taskConfiguration.diagnosis` selects one upstream stage and log artifact. Optional
+`taskResult.failure` records original build/stage/commit/exit/status and bounded redacted
+excerpt plus durable claim ID. Diagnosis reports add cause classification and no-patch reason;
+completed new-profile reports bind the retained excerpt artifact and normalized runner evidence.
+The existing failing diagnosis gate remains mandatory, including after passing repair checks.
+New project-scoped pre-invocation claims are documented in
+[diagnosis support](../agent/DIAGNOSIS-SUPPORT.md), including at-most-once crash semantics,
+protected repair paths, Jenkins integration, migration and six pending exact integrations.
+Historical B7 diagnosis envelopes remain compatible; they confer no executable support.

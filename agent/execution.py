@@ -44,6 +44,13 @@ def explicit_main(config, path):
             raise AgentConfigError("Security execution does not accept --diff")
         resolve_security_profile(body)
         result, code = run_security_execution(body, config)
+    elif body["taskType"] == "ci_failure_diagnosis":
+        from agent.diagnosis import run_diagnosis
+
+        _check_image_task("review")
+        if path:
+            raise AgentConfigError("Diagnosis does not accept --diff")
+        result, code = run_diagnosis(body, config)
     elif body["taskType"] in ("other", "test_generation"):
         from agent.other_execution import resolve_other_profile, run_single_call
         from agent.other_opencode import run_opencode
@@ -80,6 +87,29 @@ def explicit_main(config, path):
         )
     else:
         raise AgentConfigError("Task has no explicit executable consumer")
+    if body["taskType"] == "ci_failure_diagnosis":
+        from agent.remote import RemoteError
+
+        duplicate = (result["taskResult"].get("executionReason") or "").startswith(
+            "Duplicate failure"
+        )
+        if config.post_result and not duplicate:
+            try:
+                post_ci_run(
+                    config.api_url,
+                    config.project_id,
+                    token,
+                    build_ci_run_payload(result, config.build_id),
+                    config.http_timeout,
+                )
+            except RemoteError:
+                result["agentError"] = {
+                    "kind": "result_delivery_failed",
+                    "reason": "API delivery failed; original upstream result is unchanged",
+                }
+                code = 4
+        print(json.dumps(result))
+        return code
     print(json.dumps(result))
     if config.post_result:
         post_ci_run(
