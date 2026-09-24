@@ -137,3 +137,10 @@ to execution revisions and priced with Decimal; feedback never changes cost. His
 comparison amounts remain in compatibility APIs with their input/output-only limitations.
 See [the billing contract](app/billing/CONTRACT.md) for operator rate authority, returned-tier
 telemetry, additive migration and rollout order. No prices or pending runtimes are activated.
+## Scheduled catalog refresh (B16)
+
+Backend 1.15.0 adds bounded per-source operator checks, durable report review state,
+audited active-snapshot reversal and opt-in `/metrics` health. See the
+[operator contract](app/catalog/imports/OPERATIONS.md). The companion GitOps chart
+is disabled/suspended and outside watched Applications. Publication does not enable
+jobs, run production imports/migrations or change runtime eligibility.
