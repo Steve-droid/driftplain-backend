@@ -3,26 +3,9 @@
     "mode": "automatic_structured",
     "url": "https://deepswe.datacurve.ai/artifacts/v1.1/leaderboard-live.json",
     "max_bytes": 1000000,
-    "scope": [
-      "mini_swe_agent_gpt_6_astra_xhigh",
-      "mini_swe_agent_claude_fable_5_xhigh",
-      "mini_swe_agent_deepseek_v4_pro_max"
-    ],
-    "fixture_sha256": "a7c15d66288fd249c020b9931c017b92d1a3b90e480b3ff34974b752bd030019",
-    "configurations": {
-      "mini_swe_agent_gpt_6_astra_xhigh": {
-        "model": "gpt-6-astra",
-        "effort": "xhigh"
-      },
-      "mini_swe_agent_claude_fable_5_xhigh": {
-        "model": "claude-fable-5",
-        "effort": "xhigh"
-      },
-      "mini_swe_agent_deepseek_v4_pro_max": {
-        "model": "deepseek-v4-pro",
-        "effort": "max"
-      }
-    }
+    "selection": "every_complete_configuration",
+    "harness": "mini-swe-agent",
+    "fixture_sha256": "a7c15d66288fd249c020b9931c017b92d1a3b90e480b3ff34974b752bd030019"
   },
   "codereviewbench": {
     "mode": "automatic_structured",

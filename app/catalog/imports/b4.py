@@ -222,31 +222,27 @@ def deepswe(raw, spec, digest):
     )
     timestamp = datetime.fromisoformat(d["generated_at"])
     require(timestamp.tzinfo is not None, "DeepSWE missing generation timezone")
-    scope = spec["importContract"]["scope"]
+    contract = spec["importContract"]
     rows = []
     for r in d["rows"]:
-        if r["config"] not in scope:
-            continue
-        expected = spec["importContract"]["configurations"][r["config"]]
+        # The locator is derived from runner, model and effort; it cannot be reassigned.
         require(
-            r["model"] == expected["model"]
-            and r["reasoning_effort"] == expected["effort"],
+            r["config"]
+            == "_".join(
+                [r["harness"], r["model"], r["reasoning_effort"] or "default"]
+            ).replace("-", "_"),
             "DeepSWE model/effort changed",
         )
-        require(
-            r["harness"] == "mini-swe-agent" and r["source"] == "deep-swe",
-            "DeepSWE runner changed",
-        )
-        require(
-            count(r["n_tasks_attempted"]) == 113
-            and count(r["n_runs"]) == 4
-            and count(r["n_attempted"]) == 452,
-            "incomplete DeepSWE trial set",
-        )
-        require(
-            r.get("completed_by_attempt", [113] * 4) == [113] * 4,
-            "incomplete DeepSWE passes",
-        )
+        if r["harness"] != contract["harness"] or r["source"] != "deep-swe":
+            continue
+        # Only complete trial sets are evidence; partial rows stay in the raw feed.
+        if not (
+            r["n_tasks_attempted"] == 113
+            and r["n_runs"] == 4
+            and r["n_attempted"] == 452
+            and r.get("completed_by_attempt", [113] * 4) == [113] * 4
+        ):
+            continue
         require(
             count(r["n_passed"], 0) <= 452
             and r["ci_passed"] == r["n_passed"]
@@ -264,7 +260,7 @@ def deepswe(raw, spec, digest):
             "dataset": "DeepSWE v1.1",
             "task_total": 113,
             "runner": r["harness"],
-            "effort": r["reasoning_effort"],
+            "effort": r["reasoning_effort"] or "default",
             "attempts": 4,
             "aggregation": "attempt pass rate across four complete benchmark passes",
             "uncertainty_method": r["ci_method"],
@@ -315,13 +311,12 @@ def deepswe(raw, spec, digest):
                 },
             )
         )
-    require(
-        {r.locator for r in rows} == set(scope) and len(rows) == len(scope),
-        "incomplete DeepSWE launch scope",
-    )
+    locators = [r.locator for r in rows]
+    require(locators, "no complete DeepSWE configurations")
+    require(len(set(locators)) == len(locators), "duplicate DeepSWE configuration")
     return (
         rows,
-        "Explicit launch scope: three named model/effort configurations, each 113 tasks x four complete passes. Other upstream configurations are retained in raw evidence but not promoted; incomplete trial sets reject this scope. Cost is upstream reported, not a Driftplain token-price estimate.",
+        f"Every complete configuration: {len(rows)} of {len(d['rows'])} upstream model/effort configurations, each 113 tasks x four complete passes. Incomplete trial sets are retained in raw evidence but not promoted. Cost is upstream reported, not a Driftplain token-price estimate.",
     )
 
 
