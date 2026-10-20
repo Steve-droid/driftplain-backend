@@ -80,31 +80,86 @@ def test_csv_duplicate_model_rejected():
         parse("testgeneval", data)
 
 
-def test_deepswe_complete_scope_effort_cost_uncertainty():
+def deepswe_row(d, config):
+    return next(r for r in d["rows"] if r["config"] == config)
+
+
+def test_deepswe_imports_every_complete_configuration():
     batch = parse("deepswe-1-1", raw("deepswe-1-1"))
-    assert len({r.model_label for r in batch.rows}) == 3
-    r = next(r for r in batch.rows if r.model_label == "gpt-6-astra")
+    feed = json.loads(raw("deepswe-1-1"))["rows"]
+    complete = {
+        r["config"]
+        for r in feed
+        if r["n_tasks_attempted"] == 113 and r["n_attempted"] == 452
+    }
+    assert len(feed) == 70 and len(complete) == 37
+    assert {r.locator for r in batch.rows} == complete
+    # The three B4 launch configurations remain, with their exact locators.
+    assert {
+        "mini_swe_agent_gpt_6_astra_xhigh",
+        "mini_swe_agent_claude_fable_5_xhigh",
+        "mini_swe_agent_deepseek_v4_pro_max",
+    } <= complete
+    r = next(r for r in batch.rows if r.locator == "mini_swe_agent_gpt_6_astra_xhigh")
+    assert r.model_label == "gpt-6-astra"
     assert r.protocol["effort"] == "xhigh"
     assert metric(r, "mean_cost_usd").unit == "USD"
     assert metric(r, "mean_output_tokens").value > 100
     assert metric(r, "verified_task_success").confidence_level == Decimal(".95")
     assert r.source_data["cost_basis"]
-    assert "scope" in batch.coverage_note.lower()
+    assert "37 of 70" in batch.coverage_note
+
+
+def test_deepswe_incomplete_configurations_are_excluded_not_promoted():
+    batch = parse("deepswe-1-1", raw("deepswe-1-1"))
+    locators = {r.locator for r in batch.rows}
+    # 111 tasks and 444/452 attempts: browseable upstream, never complete evidence here.
+    assert "mini_swe_agent_claude_opus_4_8_max" not in locators
+    assert "mini_swe_agent_claude_opus_5_max" not in locators
+
+
+def test_deepswe_default_effort_configuration_is_labelled():
+    batch = parse("deepswe-1-1", raw("deepswe-1-1"))
+    r = next(
+        r for r in batch.rows if r.locator == "mini_swe_agent_kimi_k2_7_code_default"
+    )
+    assert r.protocol["effort"] == "default"
+    assert r.source_data["reasoning_effort"] is None
+
+
+ASTRA = "mini_swe_agent_gpt_6_astra_xhigh"
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda d: deepswe_row(d, ASTRA).update(n_runs=3),
+        lambda d: deepswe_row(d, ASTRA).update(n_attempted=451),
+        lambda d: deepswe_row(d, ASTRA).update(n_tasks_attempted=111),
+        lambda d: deepswe_row(d, ASTRA).update(completed_by_attempt=[113, 113, 113]),
+        lambda d: d["rows"].remove(deepswe_row(d, ASTRA)),
+    ],
+)
+def test_deepswe_incomplete_row_is_dropped_not_fatal(change):
+    batch = parse("deepswe-1-1", changed("deepswe-1-1", change))
+    assert ASTRA not in {r.locator for r in batch.rows}
+    assert len(batch.rows) == 36
 
 
 @pytest.mark.parametrize(
     "change",
     [
         lambda d: d.update(n_tasks_in_set=114),
-        lambda d: d["rows"][0].update(n_runs=3),
-        lambda d: d["rows"][0].update(n_attempted=451),
-        lambda d: d["rows"][0].update(n_tasks_attempted=111),
-        lambda d: d["rows"][0].update(completed_by_attempt=[113, 113, 113]),
-        lambda d: d["rows"].pop(0),
-        lambda d: d["rows"][0].update(ci_method="unknown uncertainty"),
+        lambda d: deepswe_row(d, ASTRA).update(ci_method="unknown uncertainty"),
+        lambda d: deepswe_row(d, ASTRA).update(n_passed=453),
+        lambda d: deepswe_row(d, ASTRA).update(ci_passed=1),
+        lambda d: deepswe_row(d, ASTRA).update(pass_at_1=0.5),
+        lambda d: deepswe_row(d, ASTRA).update(harness="other-agent"),
+        lambda d: d["rows"].append(dict(deepswe_row(d, ASTRA))),
+        lambda d: [r.update(n_attempted=451) for r in d["rows"]],
     ],
 )
-def test_deepswe_incomplete_scope_or_method_rejected(change):
+def test_deepswe_changed_method_or_inconsistent_row_rejects_batch(change):
     with pytest.raises(ValueError):
         parse("deepswe-1-1", changed("deepswe-1-1", change))
 
