@@ -62,6 +62,17 @@ per-source-locked transaction and failure bookkeeping from B3 apply. No scheduli
 benchmark execution, LLM, provider activation, policy edits, production import or deployment.
 B16 owns scheduling manifests; enabling them remains a separate operational action.
 
+### Reviewed label mappings for structured sources
+
+Structured adapters derive rows from upstream data, so they cannot carry a reviewed model
+mapping the way a manifest row does. `--mappings FILE` (with `--manifest` or `--fetch`) binds
+`{"review", "mappings": [{"source_label", "model_slug", "review", "citation"}]}` to the exact
+artifact. The importer stores a canonical overlay (the artifact as base64, its SHA-256 and the
+mappings) as a new snapshot payload: the artifact still passes its own adapter, bounds and hash
+pin; each label must exist in the artifact and cite its hash; the earlier unmapped snapshot stays
+as history. Reviewed-manifest sources reject overlays. Model slugs are environment-specific, so
+mapping files are not bundled.
+
 All runtime inputs ship in the wheel and backend image. Licenses/attribution/access limits
 remain in the B1 registry; these are bounded result facts, not redistributed task datasets,
 answer keys, source repositories or executable evaluation programs.

@@ -30,11 +30,18 @@ def main(argv=None):
         help="Report eligible superseded snapshots; never delete",
     )
     parser.add_argument(
+        "--mappings",
+        type=Path,
+        help="Reviewed label mappings to bind to a structured artifact (overlay)",
+    )
+    parser.add_argument(
         "--promote",
         action="store_true",
         help="Commit a fully validated batch to DATABASE_URL",
     )
     args = parser.parse_args(argv)
+    if args.mappings and args.retention_report:
+        parser.error("mappings require --manifest or --fetch")
     spec = get_source(args.source)
     try:
         if args.retention_report:
@@ -82,7 +89,7 @@ def main(argv=None):
                     )
                     + 1
                 )
-        elif not args.promote:
+        elif not args.promote or args.mappings:
             from app.catalog.imports.fetch import fetch
 
             if spec.get("importContract"):
@@ -98,6 +105,16 @@ def main(argv=None):
                     max_bytes=spec["maxPayloadBytes"],
                     expected_hash=spec.get("artifactSha256"),
                 ).body
+        if args.mappings:
+            from app.catalog.imports.contracts import decode
+            from app.catalog.imports.overlay import MAX_MAPPING_BYTES, wrap
+            from app.catalog.imports.registry import REGISTRY_HASH
+
+            with args.mappings.open("rb") as stream:
+                mappings = stream.read(MAX_MAPPING_BYTES + 1)
+            if len(mappings) > MAX_MAPPING_BYTES:
+                raise ValueError("mapping file exceeds limit")
+            raw = wrap(spec, raw, decode(mappings), REGISTRY_HASH)
         if not args.promote:
             batch = parse(args.source, raw)
             print(
@@ -120,7 +137,7 @@ def main(argv=None):
         try:
             result = (
                 import_bytes(engine, args.source, raw)
-                if args.manifest
+                if args.manifest or args.mappings
                 else import_source(engine, args.source)
             )
             print(json.dumps(asdict(result)))

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.catalog.imports.adapters import parse_candidates
 from app.catalog.imports.contracts import canonical, fingerprint
+from app.catalog.imports.overlay import is_overlay
 from app.catalog.imports.registry import REGISTRY_HASH, get_source
 from app.models import (
     CatalogBenchmarkFamily as Family,
@@ -116,7 +117,9 @@ def _promote(db, spec, source, state, raw, now):
         else "urn:sha256:" + batch.content_hash,
         fetched_at=now,
         publication_date=batch.publication_date,
-        content_type="text/csv" if spec["id"] == "testgeneval" else "application/json",
+        content_type="text/csv"
+        if spec["id"] == "testgeneval" and not is_overlay(raw)
+        else "application/json",
         byte_count=len(raw),
     )
     db.add(snapshot)
