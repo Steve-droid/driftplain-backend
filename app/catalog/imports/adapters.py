@@ -346,6 +346,19 @@ def parse_candidates(
     """Pure adapter entry point; all source bytes and frozen metadata are supplied."""
     if source_id not in source_ids() or source["id"] != source_id:
         raise ValueError("unsupported or mismatched source")
+    from app.catalog.imports.overlay import is_overlay, unwrap
+
+    if is_overlay(raw):
+        # The wrapped artifact still passes the source's own bounds, adapter and hash pin.
+        return unwrap(
+            source_id,
+            raw,
+            source,
+            source_registry_hash,
+            lambda artifact: parse_candidates(
+                source_id, artifact, source, source_registry_hash=source_registry_hash
+            ),
+        )
     if not isinstance(raw, bytes) or not 0 < len(raw) <= source["maxPayloadBytes"]:
         raise ValueError("source payload outside allowed bounds")
     if source_id in B4_IDS:

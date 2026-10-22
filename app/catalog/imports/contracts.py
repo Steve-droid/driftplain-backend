@@ -120,6 +120,22 @@ class Manifest(Record):
     rows: Annotated[tuple[Row, ...], Field(max_length=10000)]
 
 
+class LabelMapping(Mapping):
+    source_label: Annotated[str, Field(min_length=1, max_length=512)]
+
+
+class MappingOverlay(Record):
+    """Reviewed label mappings bound to the exact structured artifact they apply to."""
+
+    schema_version: Literal[1]
+    source_id: Text
+    registry_hash: Hash
+    review: Review
+    artifact_sha256: Hash
+    artifact_base64: Annotated[str, Field(min_length=1)]
+    mappings: Annotated[tuple[LabelMapping, ...], Field(min_length=1, max_length=1000)]
+
+
 class Batch(Record):
     source_id: str
     content_hash: Hash
